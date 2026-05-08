@@ -542,7 +542,7 @@ def record(period, year, month, path, source_url, sheet, metric, variable, origi
 
 def export_records(records: list[dict]) -> None:
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    write_wide(make_wide(records, all_ages_only=True), PROCESSED_DIR / "sepe_prestaciones_wide")
+    write_wide(make_wide(records, all_ages_only=False), PROCESSED_DIR / "sepe_prestaciones_wide")
 
 
 def write_wide(wide_rows: list[dict], stem: Path) -> None:

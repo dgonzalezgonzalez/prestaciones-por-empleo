@@ -53,7 +53,7 @@ py main.py --from-year 2024 --to-year 2026
 
 - `data/raw/Informe-YYYYMM.xlsx`: Excel originales descargados.
 - `data/manifest.json`: URL, hash, tamaño, cabeceras y ruta local.
-- `data/processed/sepe_prestaciones_wide.csv`: tabla ancha principal, similar a `Libro1.xlsx`, filtrada a `Todas las edades`.
+- `data/processed/sepe_prestaciones_wide.csv`: tabla ancha principal, similar a `Libro1.xlsx`, con desagregación por tramos de edad cuando existe en los Excel originales.
 - `data/processed/sepe_prestaciones_wide.xlsx`: versión Excel de la tabla ancha principal.
 
 La tabla ancha empieza con:
@@ -85,7 +85,7 @@ Después aparecen variables como:
 - `complemento de apoyo al empleo (CAE)`
 - `tasa de cobertura`
 
-La tabla principal usa `Todas las edades` para evitar una matriz ancha llena de vacíos. Incluye los desgloses de subsidios por desempleo de las hojas `BP-3.5`.
+La tabla principal incluye los tramos de edad de las hojas `BP-2.1` y `BP-3.1`. También incluye filas `Todas las edades` para los desgloses de subsidios por desempleo de las hojas `BP-3.5` y para la tasa de cobertura de `TC-1.1`. Cuando una hoja no cruza edad con tipo de subsidio, esas columnas quedan vacías porque esa desagregación no existe en el Excel original.
 
 ## Categorías
 
@@ -103,7 +103,7 @@ Ejecución completa el 2026-05-08:
 
 - 109 Excel procesados.
 - Período cubierto: 2017-01 a 2026-03.
-- 20.601 filas en tabla ancha principal.
+- 226.611 filas en tabla ancha principal.
 - 12 hojas objetivo detectadas.
 
 ## Caché de descarga
