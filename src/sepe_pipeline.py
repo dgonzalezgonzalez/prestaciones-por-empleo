@@ -34,9 +34,9 @@ TARGET_SHEETS = {
     "BP-3.5a": ("total subsidios de desempleo", "Ambos sexos", "subsidy_type"),
     "BP-3.5b": ("total subsidios de desempleo", "Hombres", "subsidy_type"),
     "BP-3.5c": ("total subsidios de desempleo", "Mujeres", "subsidy_type"),
-    "TC-1.1a": ("Tasa de cobertura", "Ambos sexos", "coverage"),
-    "TC-1.1b": ("Tasa de cobertura", "Hombres", "coverage"),
-    "TC-1.1c": ("Tasa de cobertura", "Mujeres", "coverage"),
+    "TC-1.1a": ("tasa de cobertura", "Ambos sexos", "coverage"),
+    "TC-1.1b": ("tasa de cobertura", "Hombres", "coverage"),
+    "TC-1.1c": ("tasa de cobertura", "Mujeres", "coverage"),
 }
 
 MONTHS = {
@@ -107,10 +107,10 @@ WIDE_VALUE_FIELDS = [
     "subsidio de desempleo para liberados de prision",
     "subsidio de desempleo por revision de invalidez",
     "subsidio de desempleo para fijos discontinuos",
-    "Subsidio extraordinario por desempleo (SED)",
-    "Subsidio VVGS",
-    "Complemento de apoyo al empleo (CAE)",
-    "Tasa de cobertura",
+    "subsidio extraordinario por desempleo (SED)",
+    "subsidio VVGS",
+    "complemento de apoyo al empleo (CAE)",
+    "tasa de cobertura",
 ]
 
 
@@ -297,6 +297,12 @@ def variable_name(metric: str, original: str, kind: str) -> str:
         return "subsidio de desempleo para fijos discontinuos"
     if "plenamente capaces" in label or "inválidos parciales" in label:
         return "subsidio de desempleo por revision de invalidez"
+    if "subsidio extraordinario por desempleo" in label:
+        return "subsidio extraordinario por desempleo (SED)"
+    if "subsidio vvgs" in label:
+        return "subsidio VVGS"
+    if "complemento de apoyo al empleo" in label:
+        return "complemento de apoyo al empleo (CAE)"
     return clean_variable(original)
 
 

@@ -80,10 +80,10 @@ Despues aparecen variables como:
 - `subsidio de desempleo para liberados de prision`
 - `subsidio de desempleo por revision de invalidez`
 - `subsidio de desempleo para fijos discontinuos`
-- `Subsidio extraordinario por desempleo (SED)`
-- `Subsidio VVGS`
-- `Complemento de apoyo al empleo (CAE)`
-- `Tasa de cobertura`
+- `subsidio extraordinario por desempleo (SED)`
+- `subsidio VVGS`
+- `complemento de apoyo al empleo (CAE)`
+- `tasa de cobertura`
 
 La tabla principal usa `Todas las edades` para evitar una matriz ancha llena de vacios. Incluye los desgloses de subsidios por desempleo de las hojas `BP-3.5`.
 
