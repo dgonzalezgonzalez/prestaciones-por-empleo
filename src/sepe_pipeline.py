@@ -93,6 +93,26 @@ LONG_FIELDS = [
     "nivel_geografico", "provincia", "comunidad_autonoma", "valor",
 ]
 
+WIDE_KEY_FIELDS = ["mes", "año", "sexo", "provincia", "edad", "comunidad_autonoma", "nivel_geografico"]
+WIDE_VALUE_FIELDS = [
+    "total prestacion contributiva",
+    "total subsidios de desempleo",
+    "subsidios de desempleo de mayores",
+    "subsidio de desempleo por agotamiento de la prestacion contributiva",
+    "subsidio de desempleo por no cotizacion suficiente",
+    "subsidio de desempleo por no cotizacion suficiente - derecho de 3 a 5 meses",
+    "subsidio de desempleo por no cotizacion suficiente - derecho de 6 meses",
+    "subsidio de desempleo por no cotizacion suficiente - derecho de 21 meses",
+    "subsidio de desempleo para emigrantes retornados",
+    "subsidio de desempleo para liberados de prision",
+    "subsidio de desempleo por revision de invalidez",
+    "subsidio de desempleo para fijos discontinuos",
+    "Subsidio extraordinario por desempleo (SED)",
+    "Subsidio VVGS",
+    "Complemento de apoyo al empleo (CAE)",
+    "Tasa de cobertura",
+]
+
 
 @dataclass(frozen=True)
 class RemoteFile:
@@ -516,33 +536,15 @@ def record(period, year, month, path, source_url, sheet, metric, variable, origi
 
 def export_records(records: list[dict]) -> None:
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    long_path = PROCESSED_DIR / "sepe_prestaciones_long.csv"
-    with long_path.open("w", newline="", encoding="utf-8-sig") as fh:
-        writer = csv.DictWriter(fh, fieldnames=LONG_FIELDS)
-        writer.writeheader()
-        writer.writerows(records)
-    write_wide(make_wide(records, all_ages_only=True), PROCESSED_DIR / "sepe_prestaciones_wide", core_only=True)
-    write_wide(make_wide(records, all_ages_only=True), PROCESSED_DIR / "sepe_prestaciones_wide_all_ages_all_variables")
-    write_wide(make_wide(records, all_ages_only=False), PROCESSED_DIR / "sepe_prestaciones_wide_full_disaggregation")
+    write_wide(make_wide(records, all_ages_only=True), PROCESSED_DIR / "sepe_prestaciones_wide")
 
 
-def write_wide(wide_rows: list[dict], stem: Path, core_only: bool = False) -> None:
+def write_wide(wide_rows: list[dict], stem: Path) -> None:
     if not wide_rows:
         return
-    key_fields = ["mes", "año", "sexo", "provincia", "edad", "comunidad_autonoma", "nivel_geografico"]
-    preferred = [
-        "total prestacion contributiva",
-        "total subsidios de desempleo",
-        "subsidios de desempleo de mayores",
-        "subsidio de desempleo por agotamiento de la prestacion contributiva",
-        "subsidio de desempleo por no cotizacion suficiente",
-        "Tasa de cobertura",
-    ]
-    value_set = {key for row in wide_rows for key in row if key not in key_fields}
-    value_fields = [field for field in preferred if field in value_set]
-    if not core_only:
-        value_fields.extend(sorted(value_set - set(value_fields)))
-    fields = key_fields + value_fields
+    value_set = {key for row in wide_rows for key in row if key not in WIDE_KEY_FIELDS}
+    value_fields = [field for field in WIDE_VALUE_FIELDS if field in value_set]
+    fields = WIDE_KEY_FIELDS + value_fields
     csv_path = stem.with_suffix(".csv")
     with csv_path.open("w", newline="", encoding="utf-8-sig") as fh:
         writer = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
@@ -552,13 +554,12 @@ def write_wide(wide_rows: list[dict], stem: Path, core_only: bool = False) -> No
 
 
 def make_wide(records: list[dict], all_ages_only: bool) -> list[dict]:
-    keys = ["mes", "año", "sexo", "provincia", "edad", "comunidad_autonoma", "nivel_geografico"]
     grouped: dict[tuple, dict] = {}
     for rec in records:
         if all_ages_only and rec["edad"] != "Todas las edades":
             continue
-        key = tuple(rec[k] for k in keys)
-        row = grouped.setdefault(key, {k: rec[k] for k in keys})
+        key = tuple(rec[k] for k in WIDE_KEY_FIELDS)
+        row = grouped.setdefault(key, {k: rec[k] for k in WIDE_KEY_FIELDS})
         col = rec["variable"]
         value = rec["valor"]
         if col not in row or row[col] in (None, ""):
@@ -566,21 +567,11 @@ def make_wide(records: list[dict], all_ages_only: bool) -> list[dict]:
         aggregate = "subsidio de desempleo por no cotizacion suficiente"
         if rec["variable"].startswith(aggregate + " - "):
             row[aggregate] = (row.get(aggregate) or 0) + value
-    preferred = [
-        "total prestacion contributiva",
-        "total subsidios de desempleo",
-        "subsidios de desempleo de mayores",
-        "subsidio de desempleo por agotamiento de la prestacion contributiva",
-        "subsidio de desempleo por no cotizacion suficiente",
-        "Tasa de cobertura",
-    ]
     for row in grouped.values():
-        ordered = {k: row.get(k) for k in keys}
-        for field in preferred:
+        ordered = {k: row.get(k) for k in WIDE_KEY_FIELDS}
+        for field in WIDE_VALUE_FIELDS:
             if field in row:
                 ordered[field] = row[field]
-        for field in sorted(k for k in row if k not in ordered):
-            ordered[field] = row[field]
         row.clear()
         row.update(ordered)
     return sorted(grouped.values(), key=lambda r: (r["año"], r["mes"], r["sexo"], r["nivel_geografico"], r["comunidad_autonoma"], r["provincia"], r["edad"]))
@@ -637,10 +628,7 @@ def main(argv: list[str] | None = None) -> None:
         paths = download_files(files, args.limit)
     records = process_paths(paths)
     print(f"Processed {len(paths)} workbook(s), {len(records)} long records.")
-    print(f"Wrote {PROCESSED_DIR / 'sepe_prestaciones_long.csv'}")
     print(f"Wrote {PROCESSED_DIR / 'sepe_prestaciones_wide.csv'}")
-    print(f"Wrote {PROCESSED_DIR / 'sepe_prestaciones_wide_all_ages_all_variables.csv'}")
-    print(f"Wrote {PROCESSED_DIR / 'sepe_prestaciones_wide_full_disaggregation.csv'}")
 
 
 if __name__ == "__main__":

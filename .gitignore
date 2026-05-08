@@ -6,4 +6,4 @@ data/raw/*
 data/processed/*
 data/manifest.json
 sample-*.xlsx
-
+~$*.xlsx

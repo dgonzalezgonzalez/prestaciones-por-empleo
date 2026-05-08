@@ -53,13 +53,8 @@ py main.py --from-year 2024 --to-year 2026
 
 - `data/raw/Informe-YYYYMM.xlsx`: Excel originales descargados.
 - `data/manifest.json`: URL, hash, tamano, cabeceras y ruta local.
-- `data/processed/sepe_prestaciones_long.csv`: tabla larga.
-- `data/processed/sepe_prestaciones_wide.csv`: tabla ancha principal, similar a `Libro1.xlsx`, filtrada a `Todas las edades` y variables principales.
+- `data/processed/sepe_prestaciones_wide.csv`: tabla ancha principal, similar a `Libro1.xlsx`, filtrada a `Todas las edades`.
 - `data/processed/sepe_prestaciones_wide.xlsx`: version Excel de la tabla ancha principal.
-- `data/processed/sepe_prestaciones_wide_all_ages_all_variables.csv`: tabla ancha de `Todas las edades` con todas las variables detectadas.
-- `data/processed/sepe_prestaciones_wide_all_ages_all_variables.xlsx`: version Excel de esa tabla.
-- `data/processed/sepe_prestaciones_wide_full_disaggregation.csv`: tabla ancha completa con todos los tramos de edad y variables; puede tener vacios porque no todas las hojas existen con todas las desagregaciones.
-- `data/processed/sepe_prestaciones_wide_full_disaggregation.xlsx`: version Excel de la tabla ancha completa.
 
 La tabla ancha empieza con:
 
@@ -78,9 +73,19 @@ Despues aparecen variables como:
 - `subsidios de desempleo de mayores`
 - `subsidio de desempleo por agotamiento de la prestacion contributiva`
 - `subsidio de desempleo por no cotizacion suficiente`
+- `subsidio de desempleo por no cotizacion suficiente - derecho de 3 a 5 meses`
+- `subsidio de desempleo por no cotizacion suficiente - derecho de 6 meses`
+- `subsidio de desempleo por no cotizacion suficiente - derecho de 21 meses`
+- `subsidio de desempleo para emigrantes retornados`
+- `subsidio de desempleo para liberados de prision`
+- `subsidio de desempleo por revision de invalidez`
+- `subsidio de desempleo para fijos discontinuos`
+- `Subsidio extraordinario por desempleo (SED)`
+- `Subsidio VVGS`
+- `Complemento de apoyo al empleo (CAE)`
 - `Tasa de cobertura`
 
-Tambien se conservan columnas mas desagregadas cuando existen en los Excel originales. Para evitar una matriz ancha llena de vacios, la tabla principal usa `Todas las edades` y solo variables principales. La desagregacion completa queda en la tabla larga y en `sepe_prestaciones_wide_full_disaggregation.*`.
+La tabla principal usa `Todas las edades` para evitar una matriz ancha llena de vacios. Incluye los desgloses de subsidios por desempleo de las hojas `BP-3.5`.
 
 ## Categorias
 
@@ -98,9 +103,7 @@ Ejecucion completa el 2026-05-08:
 
 - 109 Excel procesados.
 - Periodo cubierto: 2017-01 a 2026-03.
-- 1.346.234 filas en tabla larga.
 - 20.601 filas en tabla ancha principal.
-- 226.611 filas en tabla ancha completa.
 - 12 hojas objetivo detectadas.
 
 ## Cache de descarga
