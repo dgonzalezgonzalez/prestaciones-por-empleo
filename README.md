@@ -2,28 +2,28 @@
 
 Pipeline en Python para descargar y transformar los informes mensuales de prestaciones por desempleo del SEPE.
 
-## Que hace
+## Qué hace
 
-- Lee la pagina oficial del SEPE y detecta todos los Excel mensuales publicados.
+- Lee la página oficial del SEPE y detecta todos los Excel mensuales publicados.
 - Descarga solo ficheros nuevos o modificados.
 - Guarda los Excel originales en `data/raw/`.
-- Guarda el cache de descargas en `data/manifest.json`.
+- Guarda la caché de descargas en `data/manifest.json`.
 - Procesa las hojas:
   - `BP-2.1a`, `BP-2.1b`, `BP-2.1c`
   - `BP-3.1a`, `BP-3.1b`, `BP-3.1c`
   - `BP-3.5a`, `BP-3.5b`, `BP-3.5c`
   - `TC-1.1a`, `TC-1.1b`, `TC-1.1c`
-- Genera una base en formato largo y otra en formato ancho, en espanol.
+- Genera una base en formato ancho, en español.
 
-## Instalacion
+## Instalación
 
-Este ordenador no usa entornos virtuales. Instala dependencias en el Python de usuario:
+Este ordenador no usa entornos virtuales. Instala las dependencias en el Python de usuario:
 
 ```powershell
 py -m pip install --user -r requirements.txt
 ```
 
-## Ejecucion
+## Ejecución
 
 Descargar y procesar todo:
 
@@ -37,13 +37,13 @@ Procesar solo los ficheros ya descargados:
 py main.py --no-download
 ```
 
-Prueba rapida con pocos ficheros:
+Prueba rápida con pocos ficheros:
 
 ```powershell
 py main.py --limit 1
 ```
 
-Limitar anos:
+Limitar años:
 
 ```powershell
 py main.py --from-year 2024 --to-year 2026
@@ -52,9 +52,9 @@ py main.py --from-year 2024 --to-year 2026
 ## Salidas
 
 - `data/raw/Informe-YYYYMM.xlsx`: Excel originales descargados.
-- `data/manifest.json`: URL, hash, tamano, cabeceras y ruta local.
+- `data/manifest.json`: URL, hash, tamaño, cabeceras y ruta local.
 - `data/processed/sepe_prestaciones_wide.csv`: tabla ancha principal, similar a `Libro1.xlsx`, filtrada a `Todas las edades`.
-- `data/processed/sepe_prestaciones_wide.xlsx`: version Excel de la tabla ancha principal.
+- `data/processed/sepe_prestaciones_wide.xlsx`: versión Excel de la tabla ancha principal.
 
 La tabla ancha empieza con:
 
@@ -66,7 +66,7 @@ La tabla ancha empieza con:
 - `comunidad_autonoma`
 - `nivel_geografico`
 
-Despues aparecen variables como:
+Después aparecen variables como:
 
 - `total prestacion contributiva`
 - `total subsidios de desempleo`
@@ -85,32 +85,33 @@ Despues aparecen variables como:
 - `complemento de apoyo al empleo (CAE)`
 - `tasa de cobertura`
 
-La tabla principal usa `Todas las edades` para evitar una matriz ancha llena de vacios. Incluye los desgloses de subsidios por desempleo de las hojas `BP-3.5`.
+La tabla principal usa `Todas las edades` para evitar una matriz ancha llena de vacíos. Incluye los desgloses de subsidios por desempleo de las hojas `BP-3.5`.
 
-## Categorias
+## Categorías
 
 - `sexo`: `Ambos sexos`, `Hombres`, `Mujeres`.
 - `edad`: tramos de edad y `Todas las edades`.
-- `provincia`: provincia, `España`, o `Todas las provincias` para filas agregadas por comunidad autonoma.
-- `comunidad_autonoma`: comunidad autonoma o `España`.
+- `provincia`: provincia, `España`, o `Todas las provincias` para filas agregadas por comunidad autónoma.
+- `comunidad_autonoma`: comunidad autónoma o `España`.
 - `nivel_geografico`: `provincia`, `comunidad_autonoma`, `espana`.
 
-El cambio historico de `Mayores de 55 años` a `Mayores de 52 años` se normaliza como `subsidios de desempleo de mayores`, conservando el texto original en la tabla larga.
+El cambio histórico de `Mayores de 55 años` a `Mayores de 52 años` se normaliza como `subsidios de desempleo de mayores`.
 
-## Verificacion realizada
+## Verificación realizada
 
-Ejecucion completa el 2026-05-08:
+Ejecución completa el 2026-05-08:
 
 - 109 Excel procesados.
-- Periodo cubierto: 2017-01 a 2026-03.
+- Período cubierto: 2017-01 a 2026-03.
 - 20.601 filas en tabla ancha principal.
 - 12 hojas objetivo detectadas.
 
-## Cache de descarga
+## Caché de descarga
 
-El proceso de descarga esta cacheado:
+El proceso de descarga está cacheado:
 
-- Si un Excel ya existe y `ETag`, `Last-Modified` y tamano coinciden, no se descarga otra vez.
+- Si un Excel ya existe y `ETag`, `Last-Modified` y tamaño coinciden, no se descarga otra vez.
 - Si esas cabeceras cambian, el fichero se vuelve a descargar.
 - Si el contenido descargado tiene el mismo `sha256`, no se reescribe.
 - Si el `sha256` cambia, se actualiza la copia local y `data/manifest.json`.
+
