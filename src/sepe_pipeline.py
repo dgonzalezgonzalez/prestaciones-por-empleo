@@ -167,12 +167,28 @@ def download_files(files: list[RemoteFile], limit: int | None = None) -> list[Pa
         entry = manifest["files"].get(remote.url, {})
         if target.exists() and entry.get("sha256"):
             head = try_head(remote.url)
-            if head and str(target.stat().st_size) == head.get("content-length", ""):
-                paths.append(target)
-                continue
+            if head:
+                same_size = str(target.stat().st_size) == head.get("content-length", "")
+                same_etag = not head.get("etag") or head.get("etag") == entry.get("etag")
+                same_modified = not head.get("last-modified") or head.get("last-modified") == entry.get("last_modified")
+                if same_size and same_etag and same_modified:
+                    paths.append(target)
+                    continue
         response = request("GET", remote.url)
         digest = sha256_bytes(response.content)
         if target.exists() and entry.get("sha256") == digest:
+            manifest["files"][remote.url] = {
+                **entry,
+                "year": remote.year,
+                "month": remote.month,
+                "filename": remote.filename,
+                "local_path": str(target.as_posix()),
+                "source_url": remote.url,
+                "bytes": len(response.content),
+                "etag": response.headers.get("ETag"),
+                "last_modified": response.headers.get("Last-Modified"),
+                "checked_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            }
             paths.append(target)
             continue
         target.write_bytes(response.content)
@@ -505,33 +521,42 @@ def export_records(records: list[dict]) -> None:
         writer = csv.DictWriter(fh, fieldnames=LONG_FIELDS)
         writer.writeheader()
         writer.writerows(records)
-    wide_rows = make_wide(records)
-    wide_path = PROCESSED_DIR / "sepe_prestaciones_wide.csv"
-    if wide_rows:
-        key_fields = ["mes", "año", "sexo", "provincia", "edad", "comunidad_autonoma", "nivel_geografico"]
-        preferred = [
-            "total prestacion contributiva",
-            "total subsidios de desempleo",
-            "subsidios de desempleo de mayores",
-            "subsidio de desempleo por agotamiento de la prestacion contributiva",
-            "subsidio de desempleo por no cotizacion suficiente",
-            "Tasa de cobertura",
-        ]
-        value_set = {key for row in wide_rows for key in row if key not in key_fields}
-        value_fields = [field for field in preferred if field in value_set]
+    write_wide(make_wide(records, all_ages_only=True), PROCESSED_DIR / "sepe_prestaciones_wide", core_only=True)
+    write_wide(make_wide(records, all_ages_only=True), PROCESSED_DIR / "sepe_prestaciones_wide_all_ages_all_variables")
+    write_wide(make_wide(records, all_ages_only=False), PROCESSED_DIR / "sepe_prestaciones_wide_full_disaggregation")
+
+
+def write_wide(wide_rows: list[dict], stem: Path, core_only: bool = False) -> None:
+    if not wide_rows:
+        return
+    key_fields = ["mes", "año", "sexo", "provincia", "edad", "comunidad_autonoma", "nivel_geografico"]
+    preferred = [
+        "total prestacion contributiva",
+        "total subsidios de desempleo",
+        "subsidios de desempleo de mayores",
+        "subsidio de desempleo por agotamiento de la prestacion contributiva",
+        "subsidio de desempleo por no cotizacion suficiente",
+        "Tasa de cobertura",
+    ]
+    value_set = {key for row in wide_rows for key in row if key not in key_fields}
+    value_fields = [field for field in preferred if field in value_set]
+    if not core_only:
         value_fields.extend(sorted(value_set - set(value_fields)))
-        fields = key_fields + value_fields
-        with wide_path.open("w", newline="", encoding="utf-8-sig") as fh:
-            writer = csv.DictWriter(fh, fieldnames=fields)
-            writer.writeheader()
-            writer.writerows(wide_rows)
-        write_xlsx(wide_rows, PROCESSED_DIR / "sepe_prestaciones_wide.xlsx", fields)
+    fields = key_fields + value_fields
+    csv_path = stem.with_suffix(".csv")
+    with csv_path.open("w", newline="", encoding="utf-8-sig") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(wide_rows)
+    write_xlsx(wide_rows, stem.with_suffix(".xlsx"), fields)
 
 
-def make_wide(records: list[dict]) -> list[dict]:
+def make_wide(records: list[dict], all_ages_only: bool) -> list[dict]:
     keys = ["mes", "año", "sexo", "provincia", "edad", "comunidad_autonoma", "nivel_geografico"]
     grouped: dict[tuple, dict] = {}
     for rec in records:
+        if all_ages_only and rec["edad"] != "Todas las edades":
+            continue
         key = tuple(rec[k] for k in keys)
         row = grouped.setdefault(key, {k: rec[k] for k in keys})
         col = rec["variable"]
@@ -614,6 +639,8 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Processed {len(paths)} workbook(s), {len(records)} long records.")
     print(f"Wrote {PROCESSED_DIR / 'sepe_prestaciones_long.csv'}")
     print(f"Wrote {PROCESSED_DIR / 'sepe_prestaciones_wide.csv'}")
+    print(f"Wrote {PROCESSED_DIR / 'sepe_prestaciones_wide_all_ages_all_variables.csv'}")
+    print(f"Wrote {PROCESSED_DIR / 'sepe_prestaciones_wide_full_disaggregation.csv'}")
 
 
 if __name__ == "__main__":
