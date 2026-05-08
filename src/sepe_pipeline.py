@@ -25,18 +25,18 @@ PROCESSED_DIR = Path("data/processed")
 MANIFEST_PATH = Path("data/manifest.json")
 
 TARGET_SHEETS = {
-    "BP-2.1a": ("beneficiarios_prestacion_contributiva", "Both", "age"),
-    "BP-2.1b": ("beneficiarios_prestacion_contributiva", "Men", "age"),
-    "BP-2.1c": ("beneficiarios_prestacion_contributiva", "Women", "age"),
-    "BP-3.1a": ("beneficiarios_subsidio_desempleo", "Both", "age"),
-    "BP-3.1b": ("beneficiarios_subsidio_desempleo", "Men", "age"),
-    "BP-3.1c": ("beneficiarios_subsidio_desempleo", "Women", "age"),
-    "BP-3.5a": ("beneficiarios_subsidio_desempleo", "Both", "subsidy_type"),
-    "BP-3.5b": ("beneficiarios_subsidio_desempleo", "Men", "subsidy_type"),
-    "BP-3.5c": ("beneficiarios_subsidio_desempleo", "Women", "subsidy_type"),
-    "TC-1.1a": ("tasa_cobertura_total_prestaciones", "Both", "coverage"),
-    "TC-1.1b": ("tasa_cobertura_total_prestaciones", "Men", "coverage"),
-    "TC-1.1c": ("tasa_cobertura_total_prestaciones", "Women", "coverage"),
+    "BP-2.1a": ("total prestacion contributiva", "Ambos sexos", "age"),
+    "BP-2.1b": ("total prestacion contributiva", "Hombres", "age"),
+    "BP-2.1c": ("total prestacion contributiva", "Mujeres", "age"),
+    "BP-3.1a": ("total subsidios de desempleo", "Ambos sexos", "age"),
+    "BP-3.1b": ("total subsidios de desempleo", "Hombres", "age"),
+    "BP-3.1c": ("total subsidios de desempleo", "Mujeres", "age"),
+    "BP-3.5a": ("total subsidios de desempleo", "Ambos sexos", "subsidy_type"),
+    "BP-3.5b": ("total subsidios de desempleo", "Hombres", "subsidy_type"),
+    "BP-3.5c": ("total subsidios de desempleo", "Mujeres", "subsidy_type"),
+    "TC-1.1a": ("Tasa de cobertura", "Ambos sexos", "coverage"),
+    "TC-1.1b": ("Tasa de cobertura", "Hombres", "coverage"),
+    "TC-1.1c": ("Tasa de cobertura", "Mujeres", "coverage"),
 }
 
 MONTHS = {
@@ -88,9 +88,9 @@ GEO_ALIASES = {
 }
 
 LONG_FIELDS = [
-    "period", "year", "month", "source_file", "source_url", "source_sheet",
-    "metric", "variable", "variable_original", "sex", "age_category",
-    "geography_level", "province", "autonomous_community", "value",
+    "periodo", "año", "mes", "archivo_origen", "url_origen", "hoja_origen",
+    "metrica", "variable", "variable_original", "sexo", "edad",
+    "nivel_geografico", "provincia", "comunidad_autonoma", "valor",
 ]
 
 
@@ -223,12 +223,12 @@ def geography(name: str) -> tuple[str, str, str]:
     name = GEO_ALIASES.get(name, name)
     total_names = {"Total Nacional", "TOTAL NACIONAL", "Total", "TOTAL", "España"}
     if name in total_names or name.upper() == "TOTAL NACIONAL":
-        return "spain", "Spain", "Spain"
+        return "espana", "España", "España"
     if name in PROVINCE_TO_CCAA:
-        return "province", name, PROVINCE_TO_CCAA[name]
+        return "provincia", name, PROVINCE_TO_CCAA[name]
     if name in CCAA_NAMES:
-        return "autonomous_community", "All provinces", name
-    return "unknown", name, "Unknown"
+        return "comunidad_autonoma", "Todas las provincias", name
+    return "desconocido", name, "Desconocida"
 
 
 def clean_variable(label: str) -> str:
@@ -236,6 +236,32 @@ def clean_variable(label: str) -> str:
     label = label.replace("Mayores de 55 años", "Mayores de 52/55 años")
     label = label.replace("Mayores de 52 años", "Mayores de 52/55 años")
     return label
+
+
+def variable_name(metric: str, original: str, kind: str) -> str:
+    label = clean_variable(original).lower()
+    if kind in {"age", "coverage"}:
+        return metric
+    if label == "total":
+        return "total subsidios de desempleo"
+    if "mayores de 52/55" in label:
+        return "subsidios de desempleo de mayores"
+    if "agotamiento prestación contributiva" in label:
+        return "subsidio de desempleo por agotamiento de la prestacion contributiva"
+    if "periodo cotizado insuficiente" in label:
+        suffix = ""
+        if "derecho de" in label:
+            suffix = " - " + label.split(" - ", 1)[-1]
+        return "subsidio de desempleo por no cotizacion suficiente" + suffix
+    if "emigrantes retornados" in label:
+        return "subsidio de desempleo para emigrantes retornados"
+    if "liberados de prisión" in label:
+        return "subsidio de desempleo para liberados de prision"
+    if "fijos discontinuos" in label:
+        return "subsidio de desempleo para fijos discontinuos"
+    if "plenamente capaces" in label or "inválidos parciales" in label:
+        return "subsidio de desempleo por revision de invalidez"
+    return clean_variable(original)
 
 
 def parse_workbook(path: Path, source_url: str | None = None) -> list[dict]:
@@ -279,12 +305,12 @@ def parse_table_sheet(rows: dict[int, list], path: Path, source_url: str | None,
             if value is None:
                 continue
             original = variable
-            age = "All ages"
+            age = "Todas las edades"
             if kind == "age":
-                age = "All ages" if variable == "TOTAL" else clean_variable(variable)
+                age = "Todas las edades" if variable == "TOTAL" else clean_variable(variable)
                 variable = metric
             else:
-                variable = clean_variable(variable)
+                variable = variable_name(metric, variable, kind)
             records.append(record(period, year, month, path, source_url, sheet, metric, variable,
                                   original, sex, age, geo_level, province, ccaa, value))
     return records
@@ -332,7 +358,7 @@ def parse_coverage_sheet(rows: dict[int, list], path: Path, source_url: str | No
             continue
         geo_level, province, ccaa = geography(values[1])
         records.append(record(period, year, month, path, source_url, sheet, metric, metric,
-                              norm_text(headers[month_col]), sex, "All ages", geo_level, province, ccaa, value))
+                              norm_text(headers[month_col]), sex, "Todas las edades", geo_level, province, ccaa, value))
     return records
 
 
@@ -454,21 +480,21 @@ def parse_number(value):
 def record(period, year, month, path, source_url, sheet, metric, variable, original, sex, age,
            geo_level, province, ccaa, value) -> dict:
     return {
-        "period": period,
-        "year": year,
-        "month": month,
-        "source_file": path.name,
-        "source_url": source_url or "",
-        "source_sheet": sheet,
-        "metric": metric,
+        "periodo": period,
+        "año": year,
+        "mes": month,
+        "archivo_origen": path.name,
+        "url_origen": source_url or "",
+        "hoja_origen": sheet,
+        "metrica": metric,
         "variable": variable,
         "variable_original": original,
-        "sex": sex,
-        "age_category": age,
-        "geography_level": geo_level,
-        "province": province,
-        "autonomous_community": ccaa,
-        "value": value,
+        "sexo": sex,
+        "edad": age,
+        "nivel_geografico": geo_level,
+        "provincia": province,
+        "comunidad_autonoma": ccaa,
+        "valor": value,
     }
 
 
@@ -482,8 +508,18 @@ def export_records(records: list[dict]) -> None:
     wide_rows = make_wide(records)
     wide_path = PROCESSED_DIR / "sepe_prestaciones_wide.csv"
     if wide_rows:
-        key_fields = ["period", "year", "month", "sex", "age_category", "geography_level", "province", "autonomous_community"]
-        value_fields = sorted({key for row in wide_rows for key in row if key not in key_fields})
+        key_fields = ["mes", "año", "sexo", "provincia", "edad", "comunidad_autonoma", "nivel_geografico"]
+        preferred = [
+            "total prestacion contributiva",
+            "total subsidios de desempleo",
+            "subsidios de desempleo de mayores",
+            "subsidio de desempleo por agotamiento de la prestacion contributiva",
+            "subsidio de desempleo por no cotizacion suficiente",
+            "Tasa de cobertura",
+        ]
+        value_set = {key for row in wide_rows for key in row if key not in key_fields}
+        value_fields = [field for field in preferred if field in value_set]
+        value_fields.extend(sorted(value_set - set(value_fields)))
         fields = key_fields + value_fields
         with wide_path.open("w", newline="", encoding="utf-8-sig") as fh:
             writer = csv.DictWriter(fh, fieldnames=fields)
@@ -493,16 +529,36 @@ def export_records(records: list[dict]) -> None:
 
 
 def make_wide(records: list[dict]) -> list[dict]:
-    keys = ["period", "year", "month", "sex", "age_category", "geography_level", "province", "autonomous_community"]
+    keys = ["mes", "año", "sexo", "provincia", "edad", "comunidad_autonoma", "nivel_geografico"]
     grouped: dict[tuple, dict] = {}
     for rec in records:
         key = tuple(rec[k] for k in keys)
         row = grouped.setdefault(key, {k: rec[k] for k in keys})
-        col = slug(rec["variable"])
-        if col in row and row[col] != rec["value"]:
-            col = slug(f"{rec['source_sheet']}_{rec['variable_original']}")
-        row[col] = rec["value"]
-    return sorted(grouped.values(), key=lambda r: (r["period"], r["sex"], r["geography_level"], r["autonomous_community"], r["province"], r["age_category"]))
+        col = rec["variable"]
+        value = rec["valor"]
+        if col not in row or row[col] in (None, ""):
+            row[col] = value
+        aggregate = "subsidio de desempleo por no cotizacion suficiente"
+        if rec["variable"].startswith(aggregate + " - "):
+            row[aggregate] = (row.get(aggregate) or 0) + value
+    preferred = [
+        "total prestacion contributiva",
+        "total subsidios de desempleo",
+        "subsidios de desempleo de mayores",
+        "subsidio de desempleo por agotamiento de la prestacion contributiva",
+        "subsidio de desempleo por no cotizacion suficiente",
+        "Tasa de cobertura",
+    ]
+    for row in grouped.values():
+        ordered = {k: row.get(k) for k in keys}
+        for field in preferred:
+            if field in row:
+                ordered[field] = row[field]
+        for field in sorted(k for k in row if k not in ordered):
+            ordered[field] = row[field]
+        row.clear()
+        row.update(ordered)
+    return sorted(grouped.values(), key=lambda r: (r["año"], r["mes"], r["sexo"], r["nivel_geografico"], r["comunidad_autonoma"], r["provincia"], r["edad"]))
 
 
 def slug(text: str) -> str:

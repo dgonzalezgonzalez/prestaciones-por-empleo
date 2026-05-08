@@ -1,73 +1,100 @@
-# SEPE Prestaciones Pipeline
+# Prestaciones por desempleo SEPE
 
-Python pipeline for SEPE unemployment-benefit Excel reports:
+Pipeline en Python para descargar y transformar los informes mensuales de prestaciones por desempleo del SEPE.
 
-- discovers monthly Excel files on the SEPE prestaciones page;
-- downloads new or changed files into `data/raw/`;
-- stores cache metadata in `data/manifest.json`;
-- reshapes selected sheets into long and wide analysis files in `data/processed/`.
+## Que hace
 
-## Setup
+- Lee la pagina oficial del SEPE y detecta todos los Excel mensuales publicados.
+- Descarga solo ficheros nuevos o modificados.
+- Guarda los Excel originales en `data/raw/`.
+- Guarda el cache de descargas en `data/manifest.json`.
+- Procesa las hojas:
+  - `BP-2.1a`, `BP-2.1b`, `BP-2.1c`
+  - `BP-3.1a`, `BP-3.1b`, `BP-3.1c`
+  - `BP-3.5a`, `BP-3.5b`, `BP-3.5c`
+  - `TC-1.1a`, `TC-1.1b`, `TC-1.1c`
+- Genera una base en formato largo y otra en formato ancho, en espanol.
 
-This machine cannot use virtual environments, so install dependencies into the user Python:
+## Instalacion
+
+Este ordenador no usa entornos virtuales. Instala dependencias en el Python de usuario:
 
 ```powershell
 py -m pip install --user -r requirements.txt
 ```
 
-## Run
+## Ejecucion
 
-Full refresh:
+Descargar y procesar todo:
 
 ```powershell
 py main.py
 ```
 
-Smoke test with one discovered workbook:
-
-```powershell
-py main.py --limit 1
-```
-
-Process already-downloaded files only:
+Procesar solo los ficheros ya descargados:
 
 ```powershell
 py main.py --no-download
 ```
 
-Limit year range:
+Prueba rapida con pocos ficheros:
+
+```powershell
+py main.py --limit 1
+```
+
+Limitar anos:
 
 ```powershell
 py main.py --from-year 2024 --to-year 2026
 ```
 
-## Outputs
+## Salidas
 
-- `data/raw/Informe-YYYYMM.xlsx`: cached source workbooks.
-- `data/manifest.json`: source URL, local path, hash, size, and download headers.
-- `data/processed/sepe_prestaciones_long.csv`: normalized long table with one value per row.
-- `data/processed/sepe_prestaciones_wide.csv`: wide table similar to the provided example workbook.
-- `data/processed/sepe_prestaciones_wide.xlsx`: Excel version of the wide table.
+- `data/raw/Informe-YYYYMM.xlsx`: Excel originales descargados.
+- `data/manifest.json`: URL, hash, tamano, cabeceras y ruta local.
+- `data/processed/sepe_prestaciones_long.csv`: tabla larga.
+- `data/processed/sepe_prestaciones_wide.csv`: tabla ancha, similar a `Libro1.xlsx`.
+- `data/processed/sepe_prestaciones_wide.xlsx`: version Excel de la tabla ancha.
 
-Core dimensions:
+La tabla ancha empieza con:
 
-- `period`, `year`, `month`
-- `sex`: `Both`, `Men`, `Women`
-- `age_category`, including `All ages`
-- `province`, including `Spain` and `All provinces`
-- `autonomous_community`, including `Spain`
-- `geography_level`: `province`, `autonomous_community`, `spain`, or `unknown`
+- `mes`
+- `año`
+- `sexo`
+- `provincia`
+- `edad`
+- `comunidad_autonoma`
+- `nivel_geografico`
 
-The parser normalizes the subsidy label change from `Mayores de 55 años` to `Mayores de 52/55 años`, while preserving the original label in long output.
+Despues aparecen variables como:
 
-## Source Sheets
+- `total prestacion contributiva`
+- `total subsidios de desempleo`
+- `subsidios de desempleo de mayores`
+- `subsidio de desempleo por agotamiento de la prestacion contributiva`
+- `subsidio de desempleo por no cotizacion suficiente`
+- `Tasa de cobertura`
 
-Processed sheets:
+Tambien se conservan columnas mas desagregadas cuando existen en los Excel originales.
 
-- `BP-2.1a`, `BP-2.1b`, `BP-2.1c`
-- `BP-3.1a`, `BP-3.1b`, `BP-3.1c`
-- `BP-3.5a`, `BP-3.5b`, `BP-3.5c`
-- `TC-1.1a`, `TC-1.1b`, `TC-1.1c`
+## Categorias
 
-The code detects headers by sheet text, not Excel column letters, because SEPE workbook layouts vary over time.
+- `sexo`: `Ambos sexos`, `Hombres`, `Mujeres`.
+- `edad`: tramos de edad y `Todas las edades`.
+- `provincia`: provincia, `España`, o `Todas las provincias` para filas agregadas por comunidad autonoma.
+- `comunidad_autonoma`: comunidad autonoma o `España`.
+- `nivel_geografico`: `provincia`, `comunidad_autonoma`, `espana`.
+
+El cambio historico de `Mayores de 55 años` a `Mayores de 52 años` se normaliza como `subsidios de desempleo de mayores`, conservando el texto original en la tabla larga.
+
+## Verificacion realizada
+
+Ejecucion completa el 2026-05-08:
+
+- 109 Excel procesados.
+- Periodo cubierto: 2017-01 a 2026-03.
+- 1.346.234 filas en tabla larga.
+- 226.611 filas en tabla ancha.
+- 12 hojas objetivo detectadas.
 
