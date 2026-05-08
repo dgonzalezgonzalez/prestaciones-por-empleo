@@ -93,7 +93,7 @@ LONG_FIELDS = [
     "nivel_geografico", "provincia", "comunidad_autonoma", "valor",
 ]
 
-WIDE_KEY_FIELDS = ["mes", "año", "sexo", "provincia", "edad", "comunidad_autonoma", "nivel_geografico"]
+WIDE_KEY_FIELDS = ["mes", "año", "sexo", "provincia", "edad", "comunidad autonoma", "nivel geografico"]
 WIDE_VALUE_FIELDS = [
     "total prestacion contributiva",
     "total subsidios de desempleo",
@@ -533,9 +533,9 @@ def record(period, year, month, path, source_url, sheet, metric, variable, origi
         "variable_original": original,
         "sexo": sex,
         "edad": age,
-        "nivel_geografico": geo_level,
+        "nivel geografico": geo_level,
         "provincia": province,
-        "comunidad_autonoma": ccaa,
+        "comunidad autonoma": ccaa,
         "valor": value,
     }
 
@@ -580,7 +580,7 @@ def make_wide(records: list[dict], all_ages_only: bool) -> list[dict]:
                 ordered[field] = row[field]
         row.clear()
         row.update(ordered)
-    return sorted(grouped.values(), key=lambda r: (r["año"], r["mes"], r["sexo"], r["nivel_geografico"], r["comunidad_autonoma"], r["provincia"], r["edad"]))
+    return sorted(grouped.values(), key=lambda r: (r["año"], r["mes"], r["sexo"], r["nivel geografico"], r["comunidad autonoma"], r["provincia"], r["edad"]))
 
 
 def slug(text: str) -> str:

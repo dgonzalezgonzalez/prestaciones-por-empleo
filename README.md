@@ -63,8 +63,8 @@ La tabla ancha empieza con:
 - `sexo`
 - `provincia`
 - `edad`
-- `comunidad_autonoma`
-- `nivel_geografico`
+- `comunidad autonoma`
+- `nivel geografico`
 
 Después aparecen variables como:
 
@@ -92,8 +92,8 @@ La tabla principal usa `Todas las edades` para evitar una matriz ancha llena de 
 - `sexo`: `Ambos sexos`, `Hombres`, `Mujeres`.
 - `edad`: tramos de edad y `Todas las edades`.
 - `provincia`: provincia, `España`, o `Todas las provincias` para filas agregadas por comunidad autónoma.
-- `comunidad_autonoma`: comunidad autónoma o `España`.
-- `nivel_geografico`: `provincia`, `comunidad_autonoma`, `espana`.
+- `comunidad autonoma`: comunidad autónoma o `España`.
+- `nivel geografico`: `provincia`, `comunidad_autonoma`, `espana`.
 
 El cambio histórico de `Mayores de 55 años` a `Mayores de 52 años` se normaliza como `subsidios de desempleo de mayores`.
 
@@ -114,4 +114,3 @@ El proceso de descarga está cacheado:
 - Si esas cabeceras cambian, el fichero se vuelve a descargar.
 - Si el contenido descargado tiene el mismo `sha256`, no se reescribe.
 - Si el `sha256` cambia, se actualiza la copia local y `data/manifest.json`.
-
