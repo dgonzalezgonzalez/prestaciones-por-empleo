@@ -570,10 +570,8 @@ def make_wide(records: list[dict], all_ages_only: bool) -> list[dict]:
         value = rec["valor"]
         if col not in row or row[col] in (None, ""):
             row[col] = value
-        aggregate = "subsidio de desempleo por no cotizacion suficiente"
-        if rec["variable"].startswith(aggregate + " - "):
-            row[aggregate] = (row.get(aggregate) or 0) + value
     for row in grouped.values():
+        fill_no_cotizacion_aggregate(row)
         ordered = {k: row.get(k) for k in WIDE_KEY_FIELDS}
         for field in WIDE_VALUE_FIELDS:
             if field in row:
@@ -581,6 +579,19 @@ def make_wide(records: list[dict], all_ages_only: bool) -> list[dict]:
         row.clear()
         row.update(ordered)
     return sorted(grouped.values(), key=lambda r: (r["año"], r["mes"], r["sexo"], r["nivel geografico"], r["comunidad autonoma"], r["provincia"], r["edad"]))
+
+
+def fill_no_cotizacion_aggregate(row: dict) -> None:
+    aggregate = "subsidio de desempleo por no cotizacion suficiente"
+    parts = [
+        "subsidio de desempleo por no cotizacion suficiente - derecho de 3 a 5 meses",
+        "subsidio de desempleo por no cotizacion suficiente - derecho de 6 meses",
+        "subsidio de desempleo por no cotizacion suficiente - derecho de 21 meses",
+    ]
+    values = [row.get(part) for part in parts]
+    numeric = [value for value in values if isinstance(value, (int, float))]
+    if numeric:
+        row[aggregate] = sum(numeric)
 
 
 def slug(text: str) -> str:
