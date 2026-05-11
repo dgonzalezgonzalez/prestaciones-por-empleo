@@ -9,19 +9,23 @@ import sys
 import time
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urljoin
 import xml.etree.ElementTree as ET
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import requests
 from openpyxl import Workbook
+from matplotlib.ticker import FuncFormatter
 
 
 BASE_URL = "https://sepe.es/HomeSepe/que-es-el-sepe/estadisticas/estadisticas-prestaciones/informe-prestaciones.html"
 RAW_DIR = Path("data/raw")
 PROCESSED_DIR = Path("data/processed")
+FIGURES_DIR = Path("data/figures")
 MANIFEST_PATH = Path("data/manifest.json")
 
 TARGET_SHEETS = {
@@ -543,6 +547,7 @@ def record(period, year, month, path, source_url, sheet, metric, variable, origi
 def export_records(records: list[dict]) -> None:
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     write_wide(make_wide(records, all_ages_only=False), PROCESSED_DIR / "sepe_prestaciones_wide")
+    generate_figures(PROCESSED_DIR / "sepe_prestaciones_wide.csv")
 
 
 def write_wide(wide_rows: list[dict], stem: Path) -> None:
@@ -557,6 +562,168 @@ def write_wide(wide_rows: list[dict], stem: Path) -> None:
         writer.writeheader()
         writer.writerows(wide_rows)
     write_xlsx(wide_rows, stem.with_suffix(".xlsx"), fields)
+
+
+def generate_figures(csv_path: Path) -> list[Path]:
+    if not csv_path.exists():
+        return []
+
+    rows = read_national_all_ages(csv_path)
+    if not rows:
+        return []
+
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    plt.style.use("seaborn-v0_8-whitegrid")
+    plt.rcParams.update({
+        "axes.edgecolor": "#30343f",
+        "axes.labelcolor": "#30343f",
+        "axes.titlecolor": "#1f2933",
+        "figure.facecolor": "white",
+        "font.family": "DejaVu Sans",
+        "savefig.dpi": 180,
+    })
+
+    outputs = [
+        plot_beneficiaries_and_coverage(rows),
+        plot_benefit_mix(rows),
+        plot_coverage_vs_beneficiaries_index(rows),
+    ]
+    return [path for path in outputs if path]
+
+
+def read_national_all_ages(csv_path: Path) -> list[dict]:
+    wanted = {
+        "total prestacion contributiva",
+        "total subsidios de desempleo",
+        "tasa de cobertura",
+    }
+    rows = {}
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            if row.get("sexo") != "Ambos sexos":
+                continue
+            if row.get("edad") != "Todas las edades":
+                continue
+            if row.get("nivel geografico") != "espana":
+                continue
+            period = date(int(row["año"]), int(row["mes"]), 1)
+            current = rows.setdefault(period, {"period": period})
+            for field in wanted:
+                value = parse_csv_number(row.get(field))
+                if value is not None:
+                    current[field] = value
+    return [rows[key] for key in sorted(rows)]
+
+
+def parse_csv_number(value):
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return parse_number(value)
+
+
+def plot_beneficiaries_and_coverage(rows: list[dict]) -> Path:
+    periods = [row["period"] for row in rows]
+    contributiva = [row.get("total prestacion contributiva") for row in rows]
+    subsidios = [row.get("total subsidios de desempleo") for row in rows]
+    total = [safe_sum(a, b) for a, b in zip(contributiva, subsidios)]
+    coverage = [row.get("tasa de cobertura") for row in rows]
+
+    fig, ax = plt.subplots(figsize=(12, 6.8))
+    ax.plot(periods, total, color="#12355b", linewidth=2.5, label="Total beneficiarios")
+    ax.plot(periods, contributiva, color="#2f80ed", linewidth=2, label="Prestacion contributiva")
+    ax.plot(periods, subsidios, color="#d97706", linewidth=2, label="Subsidios de desempleo")
+    ax.set_title("Evolucion de la proteccion por desempleo en Espana", loc="left", fontsize=16, weight="bold")
+    ax.set_ylabel("Beneficiarios")
+    ax.yaxis.set_major_formatter(FuncFormatter(format_thousands))
+    ax.xaxis.set_major_locator(mdates.YearLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+
+    ax2 = ax.twinx()
+    ax2.plot(periods, coverage, color="#0f766e", linewidth=2.2, linestyle="--", label="Tasa de cobertura")
+    ax2.set_ylabel("Tasa de cobertura (%)")
+
+    lines, labels = ax.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax.legend(lines + lines2, labels + labels2, loc="upper left", frameon=True)
+    add_source_note(fig)
+    return save_figure(fig, "evolucion_beneficiarios_tasa_cobertura.png")
+
+
+def plot_benefit_mix(rows: list[dict]) -> Path:
+    periods = [row["period"] for row in rows]
+    contributiva = [row.get("total prestacion contributiva") or 0 for row in rows]
+    subsidios = [row.get("total subsidios de desempleo") or 0 for row in rows]
+
+    fig, ax = plt.subplots(figsize=(12, 6.8))
+    ax.stackplot(
+        periods,
+        contributiva,
+        subsidios,
+        labels=["Prestacion contributiva", "Subsidios de desempleo"],
+        colors=["#4f8fd9", "#f2b84b"],
+        alpha=0.92,
+    )
+    ax.set_title("Composicion de beneficiarios por tipo de prestacion", loc="left", fontsize=16, weight="bold")
+    ax.set_ylabel("Beneficiarios")
+    ax.yaxis.set_major_formatter(FuncFormatter(format_thousands))
+    ax.xaxis.set_major_locator(mdates.YearLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.legend(loc="upper left", frameon=True)
+    add_source_note(fig)
+    return save_figure(fig, "composicion_beneficiarios_prestaciones.png")
+
+
+def plot_coverage_vs_beneficiaries_index(rows: list[dict]) -> Path:
+    indexed = [row for row in rows if row.get("tasa de cobertura") is not None]
+    if not indexed:
+        return Path()
+    periods = [row["period"] for row in indexed]
+    total = [safe_sum(row.get("total prestacion contributiva"), row.get("total subsidios de desempleo")) for row in indexed]
+    coverage = [row.get("tasa de cobertura") for row in indexed]
+    base_total = next((value for value in total if value), None)
+    base_coverage = next((value for value in coverage if value), None)
+    if not base_total or not base_coverage:
+        return Path()
+
+    fig, ax = plt.subplots(figsize=(12, 6.8))
+    ax.axhline(100, color="#8a94a6", linewidth=1, linestyle=":")
+    ax.plot(periods, [value / base_total * 100 if value else None for value in total],
+            color="#12355b", linewidth=2.5, label="Beneficiarios")
+    ax.plot(periods, [value / base_coverage * 100 if value else None for value in coverage],
+            color="#0f766e", linewidth=2.5, label="Tasa de cobertura")
+    ax.set_title("Beneficiarios y cobertura, indice base primer mes = 100", loc="left", fontsize=16, weight="bold")
+    ax.set_ylabel("Indice")
+    ax.xaxis.set_major_locator(mdates.YearLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.legend(loc="upper left", frameon=True)
+    add_source_note(fig)
+    return save_figure(fig, "indice_beneficiarios_tasa_cobertura.png")
+
+
+def save_figure(fig, filename: str) -> Path:
+    path = FIGURES_DIR / filename
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
+def add_source_note(fig) -> None:
+    fig.text(0.01, 0.015, "Fuente: SEPE. Elaboracion propia a partir de informes mensuales de prestaciones.",
+             ha="left", fontsize=9, color="#52616b")
+
+
+def safe_sum(left, right):
+    values = [value for value in (left, right) if isinstance(value, (int, float))]
+    return sum(values) if values else None
+
+
+def format_thousands(value, _position):
+    return f"{value / 1_000_000:.1f}M" if abs(value) >= 1_000_000 else f"{value:,.0f}".replace(",", ".")
 
 
 def make_wide(records: list[dict], all_ages_only: bool) -> list[dict]:

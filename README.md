@@ -14,6 +14,7 @@ Pipeline en Python para descargar y transformar los informes mensuales de presta
   - `BP-3.5a`, `BP-3.5b`, `BP-3.5c`
   - `TC-1.1a`, `TC-1.1b`, `TC-1.1c`
 - Genera una base en formato ancho, en español.
+- Genera figuras de evolución nacional de prestaciones, beneficiarios y tasa de cobertura.
 
 ## Instalación
 
@@ -55,6 +56,9 @@ py main.py --from-year 2024 --to-year 2026
 - `data/manifest.json`: URL, hash, tamaño, cabeceras y ruta local.
 - `data/processed/sepe_prestaciones_wide.csv`: tabla ancha principal, similar a `Libro1.xlsx`, con desagregación por tramos de edad cuando existe en los Excel originales.
 - `data/processed/sepe_prestaciones_wide.xlsx`: versión Excel de la tabla ancha principal.
+- `data/figures/evolucion_beneficiarios_tasa_cobertura.png`: beneficiarios de prestación contributiva, subsidios, total de beneficiarios y tasa de cobertura.
+- `data/figures/composicion_beneficiarios_prestaciones.png`: composición del total nacional por prestación contributiva y subsidios.
+- `data/figures/indice_beneficiarios_tasa_cobertura.png`: comparación indexada entre total de beneficiarios y tasa de cobertura.
 
 La tabla ancha empieza con:
 
@@ -105,6 +109,13 @@ Ejecución completa el 2026-05-08:
 - Período cubierto: 2017-01 a 2026-03.
 - 226.611 filas en tabla ancha principal.
 - 12 hojas objetivo detectadas.
+
+Ejecución completa con figuras el 2026-05-11:
+
+- 109 Excel procesados.
+- 1.346.234 registros largos procesados internamente.
+- 226.611 filas en tabla ancha principal.
+- 3 figuras generadas en `data/figures/`.
 
 ## Caché de descarga
 
