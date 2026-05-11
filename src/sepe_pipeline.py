@@ -25,7 +25,8 @@ from matplotlib.ticker import FuncFormatter
 BASE_URL = "https://sepe.es/HomeSepe/que-es-el-sepe/estadisticas/estadisticas-prestaciones/informe-prestaciones.html"
 RAW_DIR = Path("data/raw")
 PROCESSED_DIR = Path("data/processed")
-FIGURES_DIR = Path("data/figures")
+FIGURES_DIR = Path("Gráficos")
+FIGURE_WORKBOOKS_DIR = Path("data/figure_workbooks")
 MANIFEST_PATH = Path("data/manifest.json")
 
 TARGET_SHEETS = {
@@ -575,12 +576,18 @@ def generate_figures(csv_path: Path) -> list[Path]:
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     plt.style.use("seaborn-v0_8-whitegrid")
     plt.rcParams.update({
-        "axes.edgecolor": "#30343f",
-        "axes.labelcolor": "#30343f",
-        "axes.titlecolor": "#1f2933",
+        "axes.edgecolor": "#404040",
+        "axes.labelcolor": "#404040",
+        "axes.titlecolor": "#404040",
+        "axes.spines.right": False,
+        "axes.spines.top": False,
+        "grid.color": "#D9D9D9",
+        "grid.linewidth": 0.6,
         "figure.facecolor": "white",
-        "font.family": "DejaVu Sans",
+        "font.family": "Century Gothic",
+        "font.size": 9,
         "savefig.dpi": 180,
+        "svg.fonttype": "none",
     })
 
     outputs = [
@@ -632,25 +639,34 @@ def plot_beneficiaries_and_coverage(rows: list[dict]) -> Path:
     total = [safe_sum(a, b) for a, b in zip(contributiva, subsidios)]
     coverage = [row.get("tasa de cobertura") for row in rows]
 
-    fig, ax = plt.subplots(figsize=(12, 6.8))
-    ax.plot(periods, total, color="#12355b", linewidth=2.5, label="Total beneficiarios")
-    ax.plot(periods, contributiva, color="#2f80ed", linewidth=2, label="Prestacion contributiva")
-    ax.plot(periods, subsidios, color="#d97706", linewidth=2, label="Subsidios de desempleo")
-    ax.set_title("Evolucion de la proteccion por desempleo en Espana", loc="left", fontsize=16, weight="bold")
-    ax.set_ylabel("Beneficiarios")
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.plot(periods, total, color="#83082A", linewidth=2, label="Total beneficiarios")
+    ax.plot(periods, contributiva, color="#D00D43", linewidth=1.5, label="Prestación contributiva")
+    ax.plot(periods, subsidios, color="#E397A0", linewidth=1.5, label="Subsidios de desempleo")
     ax.yaxis.set_major_formatter(FuncFormatter(format_thousands))
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.grid(axis="y")
+    ax.grid(axis="x", visible=False)
+    ax.tick_params(direction="out", colors="#404040")
 
     ax2 = ax.twinx()
-    ax2.plot(periods, coverage, color="#0f766e", linewidth=2.2, linestyle="--", label="Tasa de cobertura")
-    ax2.set_ylabel("Tasa de cobertura (%)")
+    ax2.spines["top"].set_visible(False)
+    ax2.plot(periods, coverage, color="#404040", linewidth=1.5, linestyle="--", label="Tasa de cobertura")
+    ax2.tick_params(direction="out", colors="#404040")
 
     lines, labels = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax.legend(lines + lines2, labels + labels2, loc="upper left", frameon=True)
-    add_source_note(fig)
-    return save_figure(fig, "evolucion_beneficiarios_tasa_cobertura.png")
+    ax.legend(lines + lines2, labels + labels2, loc="upper left", frameon=False, fontsize=8)
+    write_chart_workbook(
+        "evolucion_beneficiarios_tasa_cobertura.xlsx",
+        "Evolución de la protección por desempleo en España",
+        ["Periodo", "Total beneficiarios", "Prestación contributiva", "Subsidios de desempleo", "Tasa de cobertura"],
+        zip(periods, total, contributiva, subsidios, coverage),
+        "Fuente: AIReF a partir de SEPE.",
+        "Nota: Beneficiarios en personas y tasa de cobertura en porcentaje.",
+    )
+    return save_figure(fig, "evolucion_beneficiarios_tasa_cobertura.svg")
 
 
 def plot_benefit_mix(rows: list[dict]) -> Path:
@@ -658,23 +674,31 @@ def plot_benefit_mix(rows: list[dict]) -> Path:
     contributiva = [row.get("total prestacion contributiva") or 0 for row in rows]
     subsidios = [row.get("total subsidios de desempleo") or 0 for row in rows]
 
-    fig, ax = plt.subplots(figsize=(12, 6.8))
+    fig, ax = plt.subplots(figsize=(6, 3))
     ax.stackplot(
         periods,
         contributiva,
         subsidios,
-        labels=["Prestacion contributiva", "Subsidios de desempleo"],
-        colors=["#4f8fd9", "#f2b84b"],
+        labels=["Prestación contributiva", "Subsidios de desempleo"],
+        colors=["#83082A", "#E397A0"],
         alpha=0.92,
     )
-    ax.set_title("Composicion de beneficiarios por tipo de prestacion", loc="left", fontsize=16, weight="bold")
-    ax.set_ylabel("Beneficiarios")
     ax.yaxis.set_major_formatter(FuncFormatter(format_thousands))
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    ax.legend(loc="upper left", frameon=True)
-    add_source_note(fig)
-    return save_figure(fig, "composicion_beneficiarios_prestaciones.png")
+    ax.grid(axis="y")
+    ax.grid(axis="x", visible=False)
+    ax.tick_params(direction="out", colors="#404040")
+    ax.legend(loc="upper left", frameon=False, fontsize=8)
+    write_chart_workbook(
+        "composicion_beneficiarios_prestaciones.xlsx",
+        "Composición de beneficiarios por tipo de prestación",
+        ["Periodo", "Prestación contributiva", "Subsidios de desempleo"],
+        zip(periods, contributiva, subsidios),
+        "Fuente: AIReF a partir de SEPE.",
+        "Nota: Beneficiarios en personas.",
+    )
+    return save_figure(fig, "composicion_beneficiarios_prestaciones.svg")
 
 
 def plot_coverage_vs_beneficiaries_index(rows: list[dict]) -> Path:
@@ -689,32 +713,56 @@ def plot_coverage_vs_beneficiaries_index(rows: list[dict]) -> Path:
     if not base_total or not base_coverage:
         return Path()
 
-    fig, ax = plt.subplots(figsize=(12, 6.8))
+    fig, ax = plt.subplots(figsize=(6, 3))
     ax.axhline(100, color="#8a94a6", linewidth=1, linestyle=":")
-    ax.plot(periods, [value / base_total * 100 if value else None for value in total],
-            color="#12355b", linewidth=2.5, label="Beneficiarios")
-    ax.plot(periods, [value / base_coverage * 100 if value else None for value in coverage],
-            color="#0f766e", linewidth=2.5, label="Tasa de cobertura")
-    ax.set_title("Beneficiarios y cobertura, indice base primer mes = 100", loc="left", fontsize=16, weight="bold")
-    ax.set_ylabel("Indice")
+    beneficiaries_index = [value / base_total * 100 if value else None for value in total]
+    coverage_index = [value / base_coverage * 100 if value else None for value in coverage]
+    ax.plot(periods, beneficiaries_index, color="#83082A", linewidth=2, label="Beneficiarios")
+    ax.plot(periods, coverage_index, color="#404040", linewidth=1.5, label="Tasa de cobertura")
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    ax.legend(loc="upper left", frameon=True)
-    add_source_note(fig)
-    return save_figure(fig, "indice_beneficiarios_tasa_cobertura.png")
+    ax.grid(axis="y")
+    ax.grid(axis="x", visible=False)
+    ax.tick_params(direction="out", colors="#404040")
+    ax.legend(loc="upper left", frameon=False, fontsize=8)
+    write_chart_workbook(
+        "indice_beneficiarios_tasa_cobertura.xlsx",
+        "Beneficiarios y cobertura, índice base primer mes = 100",
+        ["Periodo", "Beneficiarios", "Tasa de cobertura"],
+        zip(periods, beneficiaries_index, coverage_index),
+        "Fuente: AIReF a partir de SEPE.",
+        "Nota: Índice base primer mes = 100.",
+    )
+    return save_figure(fig, "indice_beneficiarios_tasa_cobertura.svg")
 
 
 def save_figure(fig, filename: str) -> Path:
     path = FIGURES_DIR / filename
-    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    fig.tight_layout()
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
     return path
 
 
-def add_source_note(fig) -> None:
-    fig.text(0.01, 0.015, "Fuente: SEPE. Elaboracion propia a partir de informes mensuales de prestaciones.",
-             ha="left", fontsize=9, color="#52616b")
+def write_chart_workbook(filename: str, title: str, headers: list[str], rows, source: str, note: str) -> Path:
+    FIGURE_WORKBOOKS_DIR.mkdir(parents=True, exist_ok=True)
+    path = FIGURE_WORKBOOKS_DIR / filename
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "grafico"
+    ws["B2"] = title
+    ws["B3"] = source
+    ws["B4"] = note
+    for col, header in enumerate(headers, start=4):
+        ws.cell(row=5, column=col, value=header)
+    for row_idx, values in enumerate(rows, start=6):
+        for col_idx, value in enumerate(values, start=4):
+            ws.cell(row=row_idx, column=col_idx, value=value)
+    for col in ws.columns:
+        header = str(col[0].value or "")
+        ws.column_dimensions[col[0].column_letter].width = min(max(len(header) + 2, 12), 35)
+    wb.save(path)
+    return path
 
 
 def safe_sum(left, right):
