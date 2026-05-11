@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasa de cobertura por comunidad autónoma</title>
+  <style>
+    :root {
+      --airef-burgundy: #83082A;
+      --airef-crimson: #D00D43;
+      --airef-rose: #E397A0;
+      --airef-text: #404040;
+      --airef-grid: #D9D9D9;
+      --panel: #ffffff;
+      --page: #f7f5f5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #ffffff 0%, var(--page) 100%);
+      color: var(--airef-text);
+      font-family: "Century Gothic", "Aptos", sans-serif;
+    }
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 22px 36px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid #eee5e7;
+      border-radius: 8px;
+      box-shadow: 0 18px 45px rgba(64, 64, 64, 0.08);
+      padding: 18px 18px 12px;
+    }
+    .topline {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 14px;
+    }
+    h1 {
+      margin: 0;
+      color: var(--airef-text);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .kpi {
+      color: var(--airef-burgundy);
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 14px;
+      margin: 8px 0 16px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--airef-burgundy);
+    }
+    .year-pill {
+      min-width: 72px;
+      border: 1px solid #ead5db;
+      border-radius: 999px;
+      padding: 6px 12px;
+      text-align: center;
+      font-weight: 700;
+      color: var(--airef-burgundy);
+      background: #fff7f9;
+    }
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      overflow: visible;
+    }
+    .axis text, .legend, .note {
+      fill: var(--airef-text);
+      font-size: 12px;
+    }
+    .grid line {
+      stroke: var(--airef-grid);
+      stroke-width: 1;
+    }
+    .tooltip {
+      position: fixed;
+      pointer-events: none;
+      transform: translate(12px, -12px);
+      background: #ffffff;
+      border: 1px solid #ead5db;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--airef-text);
+      box-shadow: 0 12px 30px rgba(64, 64, 64, 0.14);
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 120ms ease;
+      z-index: 10;
+    }
+    .source {
+      margin: 10px 0 0;
+      font-size: 12px;
+      color: var(--airef-text);
+    }
+    @media (max-width: 680px) {
+      main { padding: 18px 12px 28px; }
+      .topline { align-items: start; flex-direction: column; }
+      .kpi { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <div class="topline">
+        <h1>Tasa de cobertura por comunidad autónoma</h1>
+        <div class="kpi" id="headline"></div>
+      </div>
+      <div class="controls">
+        <input id="yearSlider" type="range">
+        <div class="year-pill" id="yearLabel"></div>
+      </div>
+      <svg id="tasa_cobertura_ccaa" viewBox="0 0 920 430" role="img" aria-label="Tasa de cobertura por comunidad autónoma"></svg>
+      <p class="source">Fuente: AIReF a partir de SEPE.</p>
+    </section>
+  </main>
+  <div class="tooltip" id="tooltip"></div>
+  <script>
+    const chartData = {"2017": {"spain": 56.243600933424965, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 63.69929105280824}, {"region": "Aragón", "short": "Aragón", "coverage": 53.096030228774744}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 46.10211143600151}, {"region": "Canarias", "short": "Canarias", "coverage": 52.00000295260289}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 49.71050909130573}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 49.81375473662239}, {"region": "Cataluña", "short": "Cataluña", "coverage": 61.52222782799507}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 52.095697749556514}, {"region": "Extremadura", "short": "Extremadura", "coverage": 66.52856562663182}, {"region": "Galicia", "short": "Galicia", "coverage": 52.076041054745474}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 49.094572332524855}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 53.833907321360236}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 48.438650312203606}, {"region": "País Vasco", "short": "País Vasco", "coverage": 42.39818892666154}]}, "2018": {"spain": 58.23755508855865, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 65.60660230021746}, {"region": "Aragón", "short": "Aragón", "coverage": 56.02893673966215}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 47.25029333664801}, {"region": "Canarias", "short": "Canarias", "coverage": 54.22266356774401}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 52.237241086191695}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 51.635584018595274}, {"region": "Cataluña", "short": "Cataluña", "coverage": 62.74980612109425}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 53.93689776673736}, {"region": "Extremadura", "short": "Extremadura", "coverage": 70.80044868548836}, {"region": "Galicia", "short": "Galicia", "coverage": 53.932927351221004}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 50.45778111484631}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 57.36997721441109}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 49.43784335650503}, {"region": "País Vasco", "short": "País Vasco", "coverage": 43.40131304937871}]}, "2019": {"spain": 62.08911069055762, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 67.70898837421421}, {"region": "Aragón", "short": "Aragón", "coverage": 61.75601630600791}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 50.50350990220712}, {"region": "Canarias", "short": "Canarias", "coverage": 57.52015186285983}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 57.39215759893794}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 55.265610758721856}, {"region": "Cataluña", "short": "Cataluña", "coverage": 67.46474802554368}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 57.55599245802008}, {"region": "Extremadura", "short": "Extremadura", "coverage": 74.98883123286257}, {"region": "Galicia", "short": "Galicia", "coverage": 58.94575174238253}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 54.48480911032023}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 62.0256146891935}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 53.96732234553982}, {"region": "País Vasco", "short": "País Vasco", "coverage": 49.09032978614672}]}, "2020": {"spain": 84.2409963470319, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 78.74878658570155}, {"region": "Aragón", "short": "Aragón", "coverage": 87.40888260270795}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 68.81381865294827}, {"region": "Canarias", "short": "Canarias", "coverage": 95.5307221246256}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 79.92642557230528}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 69.62599871586181}, {"region": "Cataluña", "short": "Cataluña", "coverage": 94.82823049871074}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 76.18876041902794}, {"region": "Extremadura", "short": "Extremadura", "coverage": 80.22851937111898}, {"region": "Galicia", "short": "Galicia", "coverage": 85.66572981631187}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 93.16740039811572}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 75.67769092818031}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 71.57740776167417}, {"region": "País Vasco", "short": "País Vasco", "coverage": 75.98840070369288}]}, "2021": {"spain": 60.90202011451, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 64.14657580497703}, {"region": "Aragón", "short": "Aragón", "coverage": 58.645007615776535}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 52.84288740750321}, {"region": "Canarias", "short": "Canarias", "coverage": 63.78717989298573}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 58.00366804098079}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 55.652469406285434}, {"region": "Cataluña", "short": "Cataluña", "coverage": 62.769755288941674}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 55.60351961073232}, {"region": "Extremadura", "short": "Extremadura", "coverage": 74.33635486611536}, {"region": "Galicia", "short": "Galicia", "coverage": 63.78424173813922}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 52.41930337044679}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 61.86711727649554}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 51.50155562186029}, {"region": "País Vasco", "short": "País Vasco", "coverage": 52.877295657804865}]}, "2022": {"spain": 62.9386392037808, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 65.12698804956653}, {"region": "Aragón", "short": "Aragón", "coverage": 67.80493054074365}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 55.375347626027384}, {"region": "Canarias", "short": "Canarias", "coverage": 55.69367064321083}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 63.20494795518349}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 60.02824106931848}, {"region": "Cataluña", "short": "Cataluña", "coverage": 67.45999018242846}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 58.46081871650671}, {"region": "Extremadura", "short": "Extremadura", "coverage": 77.83528788183422}, {"region": "Galicia", "short": "Galicia", "coverage": 62.6628939395028}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 57.51901468752683}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 67.4311730928066}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 56.11339293017508}, {"region": "País Vasco", "short": "País Vasco", "coverage": 51.437123797894124}]}, "2023": {"spain": 68.31055923100052, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 70.70886248342434}, {"region": "Aragón", "short": "Aragón", "coverage": 75.06524553844609}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 59.770075736960315}, {"region": "Canarias", "short": "Canarias", "coverage": 58.40208065632786}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 67.9380563775707}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 65.54446177041864}, {"region": "Cataluña", "short": "Cataluña", "coverage": 73.19530161339618}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 64.85068475167782}, {"region": "Extremadura", "short": "Extremadura", "coverage": 84.31048726274638}, {"region": "Galicia", "short": "Galicia", "coverage": 67.28202343576264}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 61.04738495833781}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 75.73157113077689}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 61.65189527894588}, {"region": "País Vasco", "short": "País Vasco", "coverage": 52.88002782660967}]}, "2024": {"spain": 73.04625859677095, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 75.16484800757094}, {"region": "Aragón", "short": "Aragón", "coverage": 82.81627978799311}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 64.26964712410944}, {"region": "Canarias", "short": "Canarias", "coverage": 62.15394419271578}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 71.88712293144583}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 71.7402165701824}, {"region": "Cataluña", "short": "Cataluña", "coverage": 76.3548207375486}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 70.43760148454434}, {"region": "Extremadura", "short": "Extremadura", "coverage": 89.16533179932497}, {"region": "Galicia", "short": "Galicia", "coverage": 73.07435459721201}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 65.99176508172158}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 84.0149073678315}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 65.95848030258828}, {"region": "País Vasco", "short": "País Vasco", "coverage": 54.27668166502875}]}, "2025": {"spain": 78.16586548850161, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 81.25611319621449}, {"region": "Aragón", "short": "Aragón", "coverage": 91.1576071673462}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 70.23418356362589}, {"region": "Canarias", "short": "Canarias", "coverage": 66.67199250792365}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 78.7879017439073}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 76.94961364942085}, {"region": "Cataluña", "short": "Cataluña", "coverage": 78.8448936808554}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 75.5383828360096}, {"region": "Extremadura", "short": "Extremadura", "coverage": 93.88998421732008}, {"region": "Galicia", "short": "Galicia", "coverage": 79.42530067221674}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 70.3244819147647}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 91.11342539661996}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 73.17553296529941}, {"region": "País Vasco", "short": "País Vasco", "coverage": 57.394191518750496}]}, "2026": {"spain": 80.44710364897486, "regions": [{"region": "Andalucía", "short": "Andalucía", "coverage": 82.21367401950518}, {"region": "Aragón", "short": "Aragón", "coverage": 93.24449038748526}, {"region": "Asturias, Principado de", "short": "Asturias", "coverage": 73.09685096539246}, {"region": "Canarias", "short": "Canarias", "coverage": 66.79920206092741}, {"region": "Castilla y León", "short": "Castilla y León", "coverage": 80.1779793180104}, {"region": "Castilla-La Mancha", "short": "Castilla-La Mancha", "coverage": 79.3713092227713}, {"region": "Cataluña", "short": "Cataluña", "coverage": 81.47881138589094}, {"region": "Comunitat Valenciana", "short": "Comunitat Valenciana", "coverage": 76.80324530458688}, {"region": "Extremadura", "short": "Extremadura", "coverage": 98.83193666897631}, {"region": "Galicia", "short": "Galicia", "coverage": 81.41244157081243}, {"region": "Madrid, Comunidad de", "short": "Madrid", "coverage": 70.67604992056515}, {"region": "Murcia, Región de", "short": "Murcia", "coverage": 92.24356395093992}, {"region": "Navarra, Comunidad Foral de", "short": "Navarra", "coverage": 74.91538897106037}, {"region": "País Vasco", "short": "País Vasco", "coverage": 56.099090977419415}]}};
+
+    const years = Object.keys(chartData).map(Number).sort((a, b) => a - b);
+    const slider = document.getElementById("yearSlider");
+    const yearLabel = document.getElementById("yearLabel");
+    const headline = document.getElementById("headline");
+    const svg = document.getElementById("tasa_cobertura_ccaa");
+    const tooltip = document.getElementById("tooltip");
+    slider.min = 0;
+    slider.max = years.length - 1;
+    slider.value = years.length - 1;
+    slider.addEventListener("input", () => draw(years[Number(slider.value)]));
+
+    function el(name, attrs = {}, parent = svg) {
+      const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      parent.appendChild(node);
+      return node;
+    }
+    function clear() { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+    function fmt(value) { return value.toLocaleString("es-ES", { maximumFractionDigits: 1 }); }
+    function showTip(event, html) {
+      tooltip.innerHTML = html;
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.style.opacity = 1;
+    }
+    function hideTip() { tooltip.style.opacity = 0; }
+    function draw(year) {
+      clear();
+      yearLabel.textContent = year;
+      const payload = chartData[year];
+      const rows = [...payload.regions].sort((a, b) => a.coverage - b.coverage);
+      const spain = payload.spain;
+      headline.textContent = `${fmt(spain)} España`;
+      const margin = { top: 18, right: 36, bottom: 42, left: 190 };
+      const width = 920 - margin.left - margin.right;
+      const height = 430 - margin.top - margin.bottom;
+      const maxValue = Math.max(...rows.map(d => d.coverage), spain) * 1.08;
+      const step = height / rows.length;
+      const x = value => margin.left + value / maxValue * width;
+      const y = index => margin.top + index * step + step * 0.16;
+
+      for (let tick = 0; tick <= maxValue; tick += 20) {
+        const tx = x(tick);
+        el("line", { x1: tx, y1: margin.top, x2: tx, y2: margin.top + height, stroke: "#D9D9D9" });
+        el("text", { x: tx, y: margin.top + height + 22, "text-anchor": "middle", fill: "#404040", "font-size": 12 }).textContent = tick;
+      }
+
+      const sx = x(spain);
+      el("line", { x1: sx, y1: margin.top - 4, x2: sx, y2: margin.top + height, stroke: "#404040", "stroke-width": 3 });
+      el("text", { x: sx + 6, y: margin.top + 12, fill: "#404040", "font-size": 12, "font-weight": 700 }).textContent = "España";
+
+      rows.forEach((row, i) => {
+        const barWidth = Math.max(0, x(row.coverage) - margin.left);
+        el("text", { x: margin.left - 10, y: y(i) + step * 0.35, "text-anchor": "end", fill: "#404040", "font-size": 12 }).textContent = row.short;
+        const rect = el("rect", {
+          x: margin.left,
+          y: y(i),
+          width: barWidth,
+          height: step * 0.58,
+          fill: row.coverage >= spain ? "#83082A" : "#E397A0",
+          rx: 2
+        });
+        rect.addEventListener("mousemove", event => showTip(event, `<strong>${row.region}</strong><br>${fmt(row.coverage)}<br>España: ${fmt(spain)}`));
+        rect.addEventListener("mouseleave", hideTip);
+        el("text", { x: x(row.coverage) + 6, y: y(i) + step * 0.38, fill: "#404040", "font-size": 11 }).textContent = fmt(row.coverage);
+      });
+    }
+    draw(years[years.length - 1]);
+
+  </script>
+</body>
+</html>

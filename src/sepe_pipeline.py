@@ -27,6 +27,7 @@ RAW_DIR = Path("data/raw")
 PROCESSED_DIR = Path("data/processed")
 FIGURES_DIR = Path("Gráficos")
 FIGURE_WORKBOOKS_DIR = Path("data/figure_workbooks")
+INTERACTIVE_DIR = Path("data/interactive")
 MANIFEST_PATH = Path("data/manifest.json")
 
 TARGET_SHEETS = {
@@ -599,6 +600,7 @@ def generate_figures(csv_path: Path) -> list[Path]:
         plot_regional_coverage_latest(csv_path),
         plot_regional_dispersion(csv_path),
     ]
+    outputs.extend(generate_interactive_graphs(csv_path))
     return [path for path in outputs if path]
 
 
@@ -805,6 +807,7 @@ def plot_regional_coverage_latest(csv_path: Path) -> Path:
     rows = [row for row in rows if row.get("coverage") is not None]
     if not rows:
         return Path()
+    spain_coverage = read_latest_national_coverage(csv_path)
     rows = sorted(rows, key=lambda row: row["coverage"])
     regions = [short_region_name(row["region"]) for row in rows]
     values = [row["coverage"] for row in rows]
@@ -819,15 +822,339 @@ def plot_regional_coverage_latest(csv_path: Path) -> Path:
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
     ax.tick_params(direction="out", colors="#404040")
+    if spain_coverage is not None:
+        ax.axvline(spain_coverage, color="#404040", linewidth=2, label="España")
+        ax.legend(loc="lower right", frameon=False, fontsize=8)
     write_chart_workbook(
         "tasa_cobertura_ccaa_ultimo_periodo.xlsx",
         f"Tasa de cobertura por comunidad autónoma ({rows[0]['period_label']})",
-        ["Comunidad autónoma", "Tasa de cobertura"],
-        ((row["region"], row["coverage"]) for row in rows),
+        ["Comunidad autónoma", "Tasa de cobertura", "España"],
+        ((row["region"], row["coverage"], spain_coverage) for row in rows),
         "Fuente: AIReF a partir de SEPE.",
         "Nota: Tasa de cobertura en porcentaje. Se muestran las comunidades autónomas identificadas en la base procesada.",
     )
     return save_figure(fig, "tasa_cobertura_ccaa_ultimo_periodo.svg")
+
+
+def generate_interactive_graphs(csv_path: Path) -> list[Path]:
+    INTERACTIVE_DIR.mkdir(parents=True, exist_ok=True)
+    return [
+        write_interactive_regional_coverage(read_regional_coverage_by_year(csv_path)),
+        write_interactive_age_profile(read_age_profile_by_year(csv_path)),
+    ]
+
+
+def write_interactive_regional_coverage(data: dict[int, dict]) -> Path:
+    path = INTERACTIVE_DIR / "tasa_cobertura_ccaa_ultimo_periodo.html"
+    path.write_text(interactive_html(
+        "Tasa de cobertura por comunidad autónoma",
+        "tasa_cobertura_ccaa",
+        data,
+        REGIONAL_COVERAGE_JS,
+    ), encoding="utf-8")
+    return path
+
+
+def write_interactive_age_profile(data: dict[int, list[dict]]) -> Path:
+    path = INTERACTIVE_DIR / "perfil_edad_beneficiarios.html"
+    path.write_text(interactive_html(
+        "Perfil por edad de los beneficiarios",
+        "perfil_edad",
+        data,
+        AGE_PROFILE_JS,
+    ), encoding="utf-8")
+    return path
+
+
+def interactive_html(title: str, chart_id: str, data, renderer: str) -> str:
+    payload = json.dumps(data, ensure_ascii=False)
+    return f"""<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{title}</title>
+  <style>
+    :root {{
+      --airef-burgundy: #83082A;
+      --airef-crimson: #D00D43;
+      --airef-rose: #E397A0;
+      --airef-text: #404040;
+      --airef-grid: #D9D9D9;
+      --panel: #ffffff;
+      --page: #f7f5f5;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      background: linear-gradient(180deg, #ffffff 0%, var(--page) 100%);
+      color: var(--airef-text);
+      font-family: "Century Gothic", "Aptos", sans-serif;
+    }}
+    main {{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 22px 36px;
+    }}
+    .panel {{
+      background: var(--panel);
+      border: 1px solid #eee5e7;
+      border-radius: 8px;
+      box-shadow: 0 18px 45px rgba(64, 64, 64, 0.08);
+      padding: 18px 18px 12px;
+    }}
+    .topline {{
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 14px;
+    }}
+    h1 {{
+      margin: 0;
+      color: var(--airef-text);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }}
+    .kpi {{
+      color: var(--airef-burgundy);
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }}
+    .controls {{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 14px;
+      margin: 8px 0 16px;
+    }}
+    input[type="range"] {{
+      width: 100%;
+      accent-color: var(--airef-burgundy);
+    }}
+    .year-pill {{
+      min-width: 72px;
+      border: 1px solid #ead5db;
+      border-radius: 999px;
+      padding: 6px 12px;
+      text-align: center;
+      font-weight: 700;
+      color: var(--airef-burgundy);
+      background: #fff7f9;
+    }}
+    svg {{
+      width: 100%;
+      height: auto;
+      display: block;
+      overflow: visible;
+    }}
+    .axis text, .legend, .note {{
+      fill: var(--airef-text);
+      font-size: 12px;
+    }}
+    .grid line {{
+      stroke: var(--airef-grid);
+      stroke-width: 1;
+    }}
+    .tooltip {{
+      position: fixed;
+      pointer-events: none;
+      transform: translate(12px, -12px);
+      background: #ffffff;
+      border: 1px solid #ead5db;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--airef-text);
+      box-shadow: 0 12px 30px rgba(64, 64, 64, 0.14);
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 120ms ease;
+      z-index: 10;
+    }}
+    .source {{
+      margin: 10px 0 0;
+      font-size: 12px;
+      color: var(--airef-text);
+    }}
+    @media (max-width: 680px) {{
+      main {{ padding: 18px 12px 28px; }}
+      .topline {{ align-items: start; flex-direction: column; }}
+      .kpi {{ font-size: 24px; }}
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <div class="topline">
+        <h1>{title}</h1>
+        <div class="kpi" id="headline"></div>
+      </div>
+      <div class="controls">
+        <input id="yearSlider" type="range">
+        <div class="year-pill" id="yearLabel"></div>
+      </div>
+      <svg id="{chart_id}" viewBox="0 0 920 430" role="img" aria-label="{title}"></svg>
+      <p class="source">Fuente: AIReF a partir de SEPE.</p>
+    </section>
+  </main>
+  <div class="tooltip" id="tooltip"></div>
+  <script>
+    const chartData = {payload};
+{renderer}
+  </script>
+</body>
+</html>
+"""
+
+
+REGIONAL_COVERAGE_JS = r"""
+    const years = Object.keys(chartData).map(Number).sort((a, b) => a - b);
+    const slider = document.getElementById("yearSlider");
+    const yearLabel = document.getElementById("yearLabel");
+    const headline = document.getElementById("headline");
+    const svg = document.getElementById("tasa_cobertura_ccaa");
+    const tooltip = document.getElementById("tooltip");
+    slider.min = 0;
+    slider.max = years.length - 1;
+    slider.value = years.length - 1;
+    slider.addEventListener("input", () => draw(years[Number(slider.value)]));
+
+    function el(name, attrs = {}, parent = svg) {
+      const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      parent.appendChild(node);
+      return node;
+    }
+    function clear() { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+    function fmt(value) { return value.toLocaleString("es-ES", { maximumFractionDigits: 1 }); }
+    function showTip(event, html) {
+      tooltip.innerHTML = html;
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.style.opacity = 1;
+    }
+    function hideTip() { tooltip.style.opacity = 0; }
+    function draw(year) {
+      clear();
+      yearLabel.textContent = year;
+      const payload = chartData[year];
+      const rows = [...payload.regions].sort((a, b) => a.coverage - b.coverage);
+      const spain = payload.spain;
+      headline.textContent = `${fmt(spain)} España`;
+      const margin = { top: 18, right: 36, bottom: 42, left: 190 };
+      const width = 920 - margin.left - margin.right;
+      const height = 430 - margin.top - margin.bottom;
+      const maxValue = Math.max(...rows.map(d => d.coverage), spain) * 1.08;
+      const step = height / rows.length;
+      const x = value => margin.left + value / maxValue * width;
+      const y = index => margin.top + index * step + step * 0.16;
+
+      for (let tick = 0; tick <= maxValue; tick += 20) {
+        const tx = x(tick);
+        el("line", { x1: tx, y1: margin.top, x2: tx, y2: margin.top + height, stroke: "#D9D9D9" });
+        el("text", { x: tx, y: margin.top + height + 22, "text-anchor": "middle", fill: "#404040", "font-size": 12 }).textContent = tick;
+      }
+
+      const sx = x(spain);
+      el("line", { x1: sx, y1: margin.top - 4, x2: sx, y2: margin.top + height, stroke: "#404040", "stroke-width": 3 });
+      el("text", { x: sx + 6, y: margin.top + 12, fill: "#404040", "font-size": 12, "font-weight": 700 }).textContent = "España";
+
+      rows.forEach((row, i) => {
+        const barWidth = Math.max(0, x(row.coverage) - margin.left);
+        el("text", { x: margin.left - 10, y: y(i) + step * 0.35, "text-anchor": "end", fill: "#404040", "font-size": 12 }).textContent = row.short;
+        const rect = el("rect", {
+          x: margin.left,
+          y: y(i),
+          width: barWidth,
+          height: step * 0.58,
+          fill: row.coverage >= spain ? "#83082A" : "#E397A0",
+          rx: 2
+        });
+        rect.addEventListener("mousemove", event => showTip(event, `<strong>${row.region}</strong><br>${fmt(row.coverage)}<br>España: ${fmt(spain)}`));
+        rect.addEventListener("mouseleave", hideTip);
+        el("text", { x: x(row.coverage) + 6, y: y(i) + step * 0.38, fill: "#404040", "font-size": 11 }).textContent = fmt(row.coverage);
+      });
+    }
+    draw(years[years.length - 1]);
+"""
+
+
+AGE_PROFILE_JS = r"""
+    const years = Object.keys(chartData).map(Number).sort((a, b) => a - b);
+    const slider = document.getElementById("yearSlider");
+    const yearLabel = document.getElementById("yearLabel");
+    const headline = document.getElementById("headline");
+    const svg = document.getElementById("perfil_edad");
+    const tooltip = document.getElementById("tooltip");
+    slider.min = 0;
+    slider.max = years.length - 1;
+    slider.value = years.length - 1;
+    slider.addEventListener("input", () => draw(years[Number(slider.value)]));
+
+    function el(name, attrs = {}, parent = svg) {
+      const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      parent.appendChild(node);
+      return node;
+    }
+    function clear() { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+    function fmt(value) { return value.toLocaleString("es-ES", { maximumFractionDigits: 0 }); }
+    function fmtShort(value) {
+      return value >= 1000000 ? `${(value / 1000000).toLocaleString("es-ES", { maximumFractionDigits: 1 })}M` : fmt(value);
+    }
+    function showTip(event, html) {
+      tooltip.innerHTML = html;
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.style.opacity = 1;
+    }
+    function hideTip() { tooltip.style.opacity = 0; }
+    function draw(year) {
+      clear();
+      yearLabel.textContent = year;
+      const rows = chartData[year];
+      const total = rows.reduce((sum, row) => sum + row.total, 0);
+      headline.textContent = `${fmtShort(total)} total`;
+      const margin = { top: 20, right: 26, bottom: 86, left: 72 };
+      const width = 920 - margin.left - margin.right;
+      const height = 430 - margin.top - margin.bottom;
+      const maxValue = Math.max(...rows.map(d => d.total)) * 1.15;
+      const band = width / rows.length;
+      const x = index => margin.left + index * band + band * 0.18;
+      const barWidth = band * 0.64;
+      const y = value => margin.top + height - value / maxValue * height;
+
+      for (let tick = 0; tick <= maxValue; tick += 100000) {
+        const ty = y(tick);
+        el("line", { x1: margin.left, y1: ty, x2: margin.left + width, y2: ty, stroke: "#D9D9D9" });
+        el("text", { x: margin.left - 10, y: ty + 4, "text-anchor": "end", fill: "#404040", "font-size": 12 }).textContent = fmtShort(tick);
+      }
+
+      rows.forEach((row, i) => {
+        const bx = x(i);
+        const yContrib = y(row.contributiva);
+        const yTotal = y(row.total);
+        const contribRect = el("rect", { x: bx, y: yContrib, width: barWidth, height: margin.top + height - yContrib, fill: "#83082A", rx: 2 });
+        const subsidyRect = el("rect", { x: bx, y: yTotal, width: barWidth, height: yContrib - yTotal, fill: "#E397A0", rx: 2 });
+        const tip = `<strong>${row.age}</strong><br>Prestación contributiva: ${fmt(row.contributiva)}<br>Subsidios: ${fmt(row.subsidios)}<br>Total: ${fmt(row.total)}`;
+        [contribRect, subsidyRect].forEach(rect => {
+          rect.addEventListener("mousemove", event => showTip(event, tip));
+          rect.addEventListener("mouseleave", hideTip);
+        });
+        el("text", { x: bx + barWidth / 2, y: margin.top + height + 18, "text-anchor": "end", fill: "#404040", "font-size": 11, transform: `rotate(-38 ${bx + barWidth / 2} ${margin.top + height + 18})` }).textContent = row.age;
+      });
+
+      el("rect", { x: margin.left, y: 8, width: 12, height: 12, fill: "#83082A" });
+      el("text", { x: margin.left + 18, y: 18, fill: "#404040", "font-size": 12 }).textContent = "Prestación contributiva";
+      el("rect", { x: margin.left + 182, y: 8, width: 12, height: 12, fill: "#E397A0" });
+      el("text", { x: margin.left + 200, y: 18, fill: "#404040", "font-size": 12 }).textContent = "Subsidios de desempleo";
+    }
+    draw(years[years.length - 1]);
+"""
 
 
 def plot_regional_dispersion(csv_path: Path) -> Path:
@@ -948,6 +1275,94 @@ def read_regional_latest(csv_path: Path) -> list[dict]:
     return rows
 
 
+def read_latest_national_coverage(csv_path: Path):
+    latest = latest_period(csv_path)
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            period = date(int(row["año"]), int(row["mes"]), 1)
+            if period != latest:
+                continue
+            if row.get("sexo") != "Ambos sexos" or row.get("edad") != "Todas las edades":
+                continue
+            if row.get("nivel geografico") == "espana":
+                return parse_csv_number(row.get("tasa de cobertura"))
+    return None
+
+
+def read_regional_coverage_by_year(csv_path: Path) -> dict[int, dict]:
+    regions: dict[int, dict[str, list[float]]] = {}
+    spain: dict[int, list[float]] = {}
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            if row.get("sexo") != "Ambos sexos" or row.get("edad") != "Todas las edades":
+                continue
+            coverage = parse_csv_number(row.get("tasa de cobertura"))
+            if coverage is None:
+                continue
+            year = int(row["año"])
+            level = row.get("nivel geografico")
+            if level == "comunidad_autonoma":
+                region = row.get("comunidad autonoma")
+                regions.setdefault(year, {}).setdefault(region, []).append(coverage)
+            elif level == "espana":
+                spain.setdefault(year, []).append(coverage)
+
+    out = {}
+    for year in sorted(regions):
+        if year not in spain:
+            continue
+        out[year] = {
+            "spain": average(spain[year]),
+            "regions": [
+                {"region": region, "short": short_region_name(region), "coverage": average(values)}
+                for region, values in sorted(regions[year].items())
+            ],
+        }
+    return out
+
+
+def read_age_profile_by_year(csv_path: Path) -> dict[int, list[dict]]:
+    age_order = {
+        "16 - 19 años": 1,
+        "20 - 24 años": 2,
+        "25 - 29 años": 3,
+        "30 - 34 años": 4,
+        "35 - 39 años": 5,
+        "40 - 44 años": 6,
+        "45 - 49 años": 7,
+        "50 - 54 años": 8,
+        "55 - 59 años": 9,
+        "60 y más años": 10,
+    }
+    grouped: dict[int, dict[str, dict[str, list[float]]]] = {}
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            if row.get("sexo") != "Ambos sexos" or row.get("nivel geografico") != "espana":
+                continue
+            age = row.get("edad")
+            if age not in age_order:
+                continue
+            year = int(row["año"])
+            bucket = grouped.setdefault(year, {}).setdefault(age, {"contributiva": [], "subsidios": []})
+            bucket["contributiva"].append(parse_csv_number(row.get("total prestacion contributiva")) or 0)
+            bucket["subsidios"].append(parse_csv_number(row.get("total subsidios de desempleo")) or 0)
+
+    out = {}
+    for year in sorted(grouped):
+        rows = []
+        for age, values in grouped[year].items():
+            contributiva = average(values["contributiva"])
+            subsidios = average(values["subsidios"])
+            rows.append({
+                "age": age,
+                "contributiva": contributiva,
+                "subsidios": subsidios,
+                "total": contributiva + subsidios,
+            })
+        out[year] = sorted(rows, key=lambda row: age_order[row["age"]])
+    return out
+
+
 def read_regional_dispersion(csv_path: Path) -> list[dict]:
     by_period: dict[date, dict[str, float]] = {}
     with csv_path.open(newline="", encoding="utf-8-sig") as fh:
@@ -1011,6 +1426,10 @@ def median(values: list[float]) -> float:
     if len(ordered) % 2:
         return ordered[midpoint]
     return (ordered[midpoint - 1] + ordered[midpoint]) / 2
+
+
+def average(values: list[float]) -> float:
+    return sum(values) / len(values) if values else 0
 
 
 def period_label(period: date) -> str:

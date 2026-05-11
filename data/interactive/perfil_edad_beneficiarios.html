@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perfil por edad de los beneficiarios</title>
+  <style>
+    :root {
+      --airef-burgundy: #83082A;
+      --airef-crimson: #D00D43;
+      --airef-rose: #E397A0;
+      --airef-text: #404040;
+      --airef-grid: #D9D9D9;
+      --panel: #ffffff;
+      --page: #f7f5f5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #ffffff 0%, var(--page) 100%);
+      color: var(--airef-text);
+      font-family: "Century Gothic", "Aptos", sans-serif;
+    }
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 22px 36px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid #eee5e7;
+      border-radius: 8px;
+      box-shadow: 0 18px 45px rgba(64, 64, 64, 0.08);
+      padding: 18px 18px 12px;
+    }
+    .topline {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 14px;
+    }
+    h1 {
+      margin: 0;
+      color: var(--airef-text);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .kpi {
+      color: var(--airef-burgundy);
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 14px;
+      margin: 8px 0 16px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--airef-burgundy);
+    }
+    .year-pill {
+      min-width: 72px;
+      border: 1px solid #ead5db;
+      border-radius: 999px;
+      padding: 6px 12px;
+      text-align: center;
+      font-weight: 700;
+      color: var(--airef-burgundy);
+      background: #fff7f9;
+    }
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      overflow: visible;
+    }
+    .axis text, .legend, .note {
+      fill: var(--airef-text);
+      font-size: 12px;
+    }
+    .grid line {
+      stroke: var(--airef-grid);
+      stroke-width: 1;
+    }
+    .tooltip {
+      position: fixed;
+      pointer-events: none;
+      transform: translate(12px, -12px);
+      background: #ffffff;
+      border: 1px solid #ead5db;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--airef-text);
+      box-shadow: 0 12px 30px rgba(64, 64, 64, 0.14);
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 120ms ease;
+      z-index: 10;
+    }
+    .source {
+      margin: 10px 0 0;
+      font-size: 12px;
+      color: var(--airef-text);
+    }
+    @media (max-width: 680px) {
+      main { padding: 18px 12px 28px; }
+      .topline { align-items: start; flex-direction: column; }
+      .kpi { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <div class="topline">
+        <h1>Perfil por edad de los beneficiarios</h1>
+        <div class="kpi" id="headline"></div>
+      </div>
+      <div class="controls">
+        <input id="yearSlider" type="range">
+        <div class="year-pill" id="yearLabel"></div>
+      </div>
+      <svg id="perfil_edad" viewBox="0 0 920 430" role="img" aria-label="Perfil por edad de los beneficiarios"></svg>
+      <p class="source">Fuente: AIReF a partir de SEPE.</p>
+    </section>
+  </main>
+  <div class="tooltip" id="tooltip"></div>
+  <script>
+    const chartData = {"2017": [{"age": "16 - 19 años", "contributiva": 858.9166666666666, "subsidios": 2317.9166666666665, "total": 3176.833333333333}, {"age": "20 - 24 años", "contributiva": 28639.333333333332, "subsidios": 16488.166666666668, "total": 45127.5}, {"age": "25 - 29 años", "contributiva": 82596.91666666667, "subsidios": 38196.666666666664, "total": 120793.58333333334}, {"age": "30 - 34 años", "contributiva": 107789.0, "subsidios": 55101.333333333336, "total": 162890.33333333334}, {"age": "35 - 39 años", "contributiva": 118429.0, "subsidios": 69423.83333333333, "total": 187852.8333333333}, {"age": "40 - 44 años", "contributiva": 110130.66666666667, "subsidios": 77122.0, "total": 187252.6666666667}, {"age": "45 - 49 años", "contributiva": 90214.58333333333, "subsidios": 62586.666666666664, "total": 152801.25}, {"age": "50 - 54 años", "contributiva": 74095.75, "subsidios": 62181.5, "total": 136277.25}, {"age": "55 - 59 años", "contributiva": 62123.083333333336, "subsidios": 172277.08333333334, "total": 234400.1666666667}, {"age": "60 y más años", "contributiva": 51697.333333333336, "subsidios": 150599.08333333334, "total": 202296.4166666667}], "2018": [{"age": "16 - 19 años", "contributiva": 1143.9166666666667, "subsidios": 2454.8333333333335, "total": 3598.75}, {"age": "20 - 24 años", "contributiva": 33647.75, "subsidios": 16576.0, "total": 50223.75}, {"age": "25 - 29 años", "contributiva": 89478.08333333333, "subsidios": 37575.583333333336, "total": 127053.66666666666}, {"age": "30 - 34 años", "contributiva": 109252.16666666667, "subsidios": 51808.083333333336, "total": 161060.25}, {"age": "35 - 39 años", "contributiva": 117384.25, "subsidios": 63651.25, "total": 181035.5}, {"age": "40 - 44 años", "contributiva": 112355.25, "subsidios": 71087.75, "total": 183443.0}, {"age": "45 - 49 años", "contributiva": 93280.66666666667, "subsidios": 59320.75, "total": 152601.4166666667}, {"age": "50 - 54 años", "contributiva": 77123.91666666667, "subsidios": 59503.916666666664, "total": 136627.83333333334}, {"age": "55 - 59 años", "contributiva": 64181.166666666664, "subsidios": 144316.58333333334, "total": 208497.75}, {"age": "60 y más años", "contributiva": 53324.5, "subsidios": 155843.66666666666, "total": 209168.16666666666}], "2019": [{"age": "16 - 19 años", "contributiva": 1474.5, "subsidios": 2495.9, "total": 3970.4}, {"age": "20 - 24 años", "contributiva": 39591.1, "subsidios": 16011.6, "total": 55602.7}, {"age": "25 - 29 años", "contributiva": 96207.7, "subsidios": 36059.8, "total": 132267.5}, {"age": "30 - 34 años", "contributiva": 113417.5, "subsidios": 52895.4, "total": 166312.9}, {"age": "35 - 39 años", "contributiva": 119622.5, "subsidios": 64648.6, "total": 184271.1}, {"age": "40 - 44 años", "contributiva": 118505.7, "subsidios": 73125.8, "total": 191631.5}, {"age": "45 - 49 años", "contributiva": 100379.4, "subsidios": 64005.8, "total": 164385.2}, {"age": "50 - 54 años", "contributiva": 83284.3, "subsidios": 86082.3, "total": 169366.6}, {"age": "55 - 59 años", "contributiva": 70660.2, "subsidios": 155725.8, "total": 226386.0}, {"age": "60 y más años", "contributiva": 58695.1, "subsidios": 177311.5, "total": 236006.6}], "2020": [{"age": "16 - 19 años", "contributiva": 9413.5, "subsidios": 3031.5, "total": 12445.0}, {"age": "20 - 24 años", "contributiva": 110620.5, "subsidios": 20461.333333333332, "total": 131081.83333333334}, {"age": "25 - 29 años", "contributiva": 215069.58333333334, "subsidios": 41021.083333333336, "total": 256090.6666666667}, {"age": "30 - 34 años", "contributiva": 241146.25, "subsidios": 59041.0, "total": 300187.25}, {"age": "35 - 39 años", "contributiva": 256599.41666666666, "subsidios": 71139.33333333333, "total": 327738.75}, {"age": "40 - 44 años", "contributiva": 273918.0, "subsidios": 83162.66666666667, "total": 357080.6666666667}, {"age": "45 - 49 años", "contributiva": 246141.83333333334, "subsidios": 70452.58333333333, "total": 316594.4166666667}, {"age": "50 - 54 años", "contributiva": 200579.41666666666, "subsidios": 109593.83333333333, "total": 310173.25}, {"age": "55 - 59 años", "contributiva": 159456.08333333334, "subsidios": 173415.66666666666, "total": 332871.75}, {"age": "60 y más años", "contributiva": 115544.08333333333, "subsidios": 207292.08333333334, "total": 322836.1666666667}], "2021": [{"age": "16 - 19 años", "contributiva": 1517.0, "subsidios": 1764.1666666666667, "total": 3281.166666666667}, {"age": "20 - 24 años", "contributiva": 42008.583333333336, "subsidios": 14621.916666666666, "total": 56630.5}, {"age": "25 - 29 años", "contributiva": 96360.5, "subsidios": 32127.083333333332, "total": 128487.58333333333}, {"age": "30 - 34 años", "contributiva": 116711.58333333333, "subsidios": 49946.5, "total": 166658.0833333333}, {"age": "35 - 39 años", "contributiva": 124518.25, "subsidios": 60551.833333333336, "total": 185070.08333333334}, {"age": "40 - 44 años", "contributiva": 133992.91666666666, "subsidios": 74750.83333333333, "total": 208743.75}, {"age": "45 - 49 años", "contributiva": 126284.75, "subsidios": 62182.583333333336, "total": 188467.33333333334}, {"age": "50 - 54 años", "contributiva": 106964.25, "subsidios": 108000.75, "total": 214965.0}, {"age": "55 - 59 años", "contributiva": 93594.83333333333, "subsidios": 176272.5, "total": 269867.3333333333}, {"age": "60 y más años", "contributiva": 80903.5, "subsidios": 218362.83333333334, "total": 299266.3333333334}], "2022": [{"age": "16 - 19 años", "contributiva": 1017.5833333333334, "subsidios": 1637.8333333333333, "total": 2655.4166666666665}, {"age": "20 - 24 años", "contributiva": 35731.666666666664, "subsidios": 11849.083333333334, "total": 47580.75}, {"age": "25 - 29 años", "contributiva": 83301.75, "subsidios": 23573.75, "total": 106875.5}, {"age": "30 - 34 años", "contributiva": 98918.16666666667, "subsidios": 36929.75, "total": 135847.9166666667}, {"age": "35 - 39 años", "contributiva": 100547.83333333333, "subsidios": 45183.666666666664, "total": 145731.5}, {"age": "40 - 44 años", "contributiva": 106769.08333333333, "subsidios": 56242.916666666664, "total": 163012.0}, {"age": "45 - 49 años", "contributiva": 102125.66666666667, "subsidios": 48598.75, "total": 150724.4166666667}, {"age": "50 - 54 años", "contributiva": 87933.16666666667, "subsidios": 95328.25, "total": 183261.4166666667}, {"age": "55 - 59 años", "contributiva": 82789.5, "subsidios": 173711.0, "total": 256500.5}, {"age": "60 y más años", "contributiva": 74093.0, "subsidios": 225134.08333333334, "total": 299227.0833333334}], "2023": [{"age": "16 - 19 años", "contributiva": 1360.4166666666667, "subsidios": 2222.3333333333335, "total": 3582.75}, {"age": "20 - 24 años", "contributiva": 40895.833333333336, "subsidios": 13664.25, "total": 54560.083333333336}, {"age": "25 - 29 años", "contributiva": 88742.75, "subsidios": 23178.833333333332, "total": 111921.58333333333}, {"age": "30 - 34 años", "contributiva": 103329.08333333333, "subsidios": 34424.083333333336, "total": 137753.16666666666}, {"age": "35 - 39 años", "contributiva": 101787.0, "subsidios": 41652.583333333336, "total": 143439.58333333334}, {"age": "40 - 44 años", "contributiva": 105806.58333333333, "subsidios": 50944.666666666664, "total": 156751.25}, {"age": "45 - 49 años", "contributiva": 104688.58333333333, "subsidios": 46997.083333333336, "total": 151685.66666666666}, {"age": "50 - 54 años", "contributiva": 90203.08333333333, "subsidios": 91269.5, "total": 181472.5833333333}, {"age": "55 - 59 años", "contributiva": 84902.33333333333, "subsidios": 178262.16666666666, "total": 263164.5}, {"age": "60 y más años", "contributiva": 79375.41666666667, "subsidios": 236920.66666666666, "total": 316296.0833333333}], "2024": [{"age": "16 - 19 años", "contributiva": 1736.25, "subsidios": 2173.75, "total": 3910.0}, {"age": "20 - 24 años", "contributiva": 46362.416666666664, "subsidios": 12982.583333333334, "total": 59345.0}, {"age": "25 - 29 años", "contributiva": 95359.66666666667, "subsidios": 21451.5, "total": 116811.16666666667}, {"age": "30 - 34 años", "contributiva": 108887.58333333333, "subsidios": 32400.666666666668, "total": 141288.25}, {"age": "35 - 39 años", "contributiva": 105275.16666666667, "subsidios": 39966.083333333336, "total": 145241.25}, {"age": "40 - 44 años", "contributiva": 106926.16666666667, "subsidios": 48354.75, "total": 155280.9166666667}, {"age": "45 - 49 años", "contributiva": 108287.66666666667, "subsidios": 45722.333333333336, "total": 154010.0}, {"age": "50 - 54 años", "contributiva": 94407.41666666667, "subsidios": 89620.16666666667, "total": 184027.58333333334}, {"age": "55 - 59 años", "contributiva": 85698.33333333333, "subsidios": 180736.58333333334, "total": 266434.9166666667}, {"age": "60 y más años", "contributiva": 87185.91666666667, "subsidios": 250700.25, "total": 337886.1666666667}], "2025": [{"age": "16 - 19 años", "contributiva": 1873.6666666666667, "subsidios": 3286.25, "total": 5159.916666666667}, {"age": "20 - 24 años", "contributiva": 49175.666666666664, "subsidios": 19686.083333333332, "total": 68861.75}, {"age": "25 - 29 años", "contributiva": 98919.75, "subsidios": 27615.833333333332, "total": 126535.58333333333}, {"age": "30 - 34 años", "contributiva": 110074.33333333333, "subsidios": 37183.333333333336, "total": 147257.66666666666}, {"age": "35 - 39 años", "contributiva": 106707.0, "subsidios": 45085.583333333336, "total": 151792.58333333334}, {"age": "40 - 44 años", "contributiva": 105881.83333333333, "subsidios": 51257.083333333336, "total": 157138.91666666666}, {"age": "45 - 49 años", "contributiva": 109687.25, "subsidios": 51492.666666666664, "total": 161179.91666666666}, {"age": "50 - 54 años", "contributiva": 97902.25, "subsidios": 93297.75, "total": 191200.0}, {"age": "55 - 59 años", "contributiva": 88958.25, "subsidios": 187213.75, "total": 276172.0}, {"age": "60 y más años", "contributiva": 94989.41666666667, "subsidios": 264881.1666666667, "total": 359870.5833333334}], "2026": [{"age": "16 - 19 años", "contributiva": 2103.6666666666665, "subsidios": 3732.3333333333335, "total": 5836.0}, {"age": "20 - 24 años", "contributiva": 57216.333333333336, "subsidios": 22009.666666666668, "total": 79226.0}, {"age": "25 - 29 años", "contributiva": 107812.0, "subsidios": 27931.0, "total": 135743.0}, {"age": "30 - 34 años", "contributiva": 115771.0, "subsidios": 36628.333333333336, "total": 152399.33333333334}, {"age": "35 - 39 años", "contributiva": 111875.66666666667, "subsidios": 44791.333333333336, "total": 156667.0}, {"age": "40 - 44 años", "contributiva": 108874.66666666667, "subsidios": 48465.666666666664, "total": 157340.33333333334}, {"age": "45 - 49 años", "contributiva": 113560.0, "subsidios": 52585.666666666664, "total": 166145.66666666666}, {"age": "50 - 54 años", "contributiva": 102231.66666666667, "subsidios": 92815.0, "total": 195046.6666666667}, {"age": "55 - 59 años", "contributiva": 91435.66666666667, "subsidios": 189817.66666666666, "total": 281253.3333333333}, {"age": "60 y más años", "contributiva": 98118.66666666667, "subsidios": 276459.0, "total": 374577.6666666667}]};
+
+    const years = Object.keys(chartData).map(Number).sort((a, b) => a - b);
+    const slider = document.getElementById("yearSlider");
+    const yearLabel = document.getElementById("yearLabel");
+    const headline = document.getElementById("headline");
+    const svg = document.getElementById("perfil_edad");
+    const tooltip = document.getElementById("tooltip");
+    slider.min = 0;
+    slider.max = years.length - 1;
+    slider.value = years.length - 1;
+    slider.addEventListener("input", () => draw(years[Number(slider.value)]));
+
+    function el(name, attrs = {}, parent = svg) {
+      const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      parent.appendChild(node);
+      return node;
+    }
+    function clear() { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+    function fmt(value) { return value.toLocaleString("es-ES", { maximumFractionDigits: 0 }); }
+    function fmtShort(value) {
+      return value >= 1000000 ? `${(value / 1000000).toLocaleString("es-ES", { maximumFractionDigits: 1 })}M` : fmt(value);
+    }
+    function showTip(event, html) {
+      tooltip.innerHTML = html;
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.style.opacity = 1;
+    }
+    function hideTip() { tooltip.style.opacity = 0; }
+    function draw(year) {
+      clear();
+      yearLabel.textContent = year;
+      const rows = chartData[year];
+      const total = rows.reduce((sum, row) => sum + row.total, 0);
+      headline.textContent = `${fmtShort(total)} total`;
+      const margin = { top: 20, right: 26, bottom: 86, left: 72 };
+      const width = 920 - margin.left - margin.right;
+      const height = 430 - margin.top - margin.bottom;
+      const maxValue = Math.max(...rows.map(d => d.total)) * 1.15;
+      const band = width / rows.length;
+      const x = index => margin.left + index * band + band * 0.18;
+      const barWidth = band * 0.64;
+      const y = value => margin.top + height - value / maxValue * height;
+
+      for (let tick = 0; tick <= maxValue; tick += 100000) {
+        const ty = y(tick);
+        el("line", { x1: margin.left, y1: ty, x2: margin.left + width, y2: ty, stroke: "#D9D9D9" });
+        el("text", { x: margin.left - 10, y: ty + 4, "text-anchor": "end", fill: "#404040", "font-size": 12 }).textContent = fmtShort(tick);
+      }
+
+      rows.forEach((row, i) => {
+        const bx = x(i);
+        const yContrib = y(row.contributiva);
+        const yTotal = y(row.total);
+        const contribRect = el("rect", { x: bx, y: yContrib, width: barWidth, height: margin.top + height - yContrib, fill: "#83082A", rx: 2 });
+        const subsidyRect = el("rect", { x: bx, y: yTotal, width: barWidth, height: yContrib - yTotal, fill: "#E397A0", rx: 2 });
+        const tip = `<strong>${row.age}</strong><br>Prestación contributiva: ${fmt(row.contributiva)}<br>Subsidios: ${fmt(row.subsidios)}<br>Total: ${fmt(row.total)}`;
+        [contribRect, subsidyRect].forEach(rect => {
+          rect.addEventListener("mousemove", event => showTip(event, tip));
+          rect.addEventListener("mouseleave", hideTip);
+        });
+        el("text", { x: bx + barWidth / 2, y: margin.top + height + 18, "text-anchor": "end", fill: "#404040", "font-size": 11, transform: `rotate(-38 ${bx + barWidth / 2} ${margin.top + height + 18})` }).textContent = row.age;
+      });
+
+      el("rect", { x: margin.left, y: 8, width: 12, height: 12, fill: "#83082A" });
+      el("text", { x: margin.left + 18, y: 18, fill: "#404040", "font-size": 12 }).textContent = "Prestación contributiva";
+      el("rect", { x: margin.left + 182, y: 8, width: 12, height: 12, fill: "#E397A0" });
+      el("text", { x: margin.left + 200, y: 18, fill: "#404040", "font-size": 12 }).textContent = "Subsidios de desempleo";
+    }
+    draw(years[years.length - 1]);
+
+  </script>
+</body>
+</html>
