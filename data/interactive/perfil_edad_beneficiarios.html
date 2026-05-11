@@ -145,6 +145,7 @@
     slider.max = years.length - 1;
     slider.value = years.length - 1;
     slider.addEventListener("input", () => draw(years[Number(slider.value)]));
+    const fixedMax = Math.ceil(Math.max(...years.flatMap(year => chartData[year].map(row => row.total))) / 100000) * 100000;
 
     function el(name, attrs = {}, parent = svg) {
       const node = document.createElementNS("http://www.w3.org/2000/svg", name);
@@ -173,7 +174,7 @@
       const margin = { top: 20, right: 26, bottom: 86, left: 72 };
       const width = 920 - margin.left - margin.right;
       const height = 430 - margin.top - margin.bottom;
-      const maxValue = Math.max(...rows.map(d => d.total)) * 1.15;
+      const maxValue = fixedMax;
       const band = width / rows.length;
       const x = index => margin.left + index * band + band * 0.18;
       const barWidth = band * 0.64;

@@ -64,8 +64,11 @@ py main.py --from-year 2024 --to-year 2026
 - `Gráficos/tasa_cobertura_ccaa_ultimo_periodo.svg`: heterogeneidad territorial de la tasa de cobertura en el último periodo disponible, en formato vectorial AIReF.
 - `Gráficos/dispersion_ccaa_beneficiarios.svg`: rango territorial de la evolución indexada de beneficiarios por comunidad autónoma, en formato vectorial AIReF.
 - `data/figure_workbooks/*.xlsx`: libros auxiliares con título en `B2`, fuente en `B3`, nota en `B4` y tabla de datos desde `D5`.
-- `data/interactive/tasa_cobertura_ccaa_ultimo_periodo.html`: versión interactiva de la tasa de cobertura por comunidad autónoma, con selector anual y referencia de España.
-- `data/interactive/perfil_edad_beneficiarios.html`: versión interactiva del perfil por edad, con selector anual y desglose por prestación contributiva y subsidios.
+- `data/interactive/tasa_cobertura_ccaa_ultimo_periodo.html`: versión interactiva de la tasa de cobertura por comunidad autónoma, con selector anual, eje fijo y referencia de España.
+- `data/interactive/perfil_edad_beneficiarios.html`: versión interactiva del perfil por edad, con selector anual, eje fijo y desglose por prestación contributiva y subsidios.
+- `data/interactive/peso_subsidios_ccaa.html`: versión interactiva del peso de subsidios en el total de beneficiarios por comunidad autónoma, con selector anual, eje fijo y referencia de España.
+- `data/interactive/peso_mujeres_por_edad.html`: versión interactiva del peso de mujeres por tramo de edad, con selector anual y eje fijo de 0 a 100.
+- `data/interactive/mapa_calor_tasa_cobertura_ccaa.html`: mapa de calor interactivo de la tasa de cobertura por comunidad autónoma y año, con escala fija.
 
 La tabla ancha empieza con:
 
@@ -124,7 +127,7 @@ Ejecución completa con figuras el 2026-05-11:
 - 226.611 filas en tabla ancha principal.
 - 7 figuras SVG generadas en `Gráficos/`.
 - 7 libros auxiliares generados en `data/figure_workbooks/`.
-- 2 gráficos interactivos HTML generados en `data/interactive/`.
+- 5 gráficos interactivos HTML generados en `data/interactive/`.
 
 ## Caché de descarga
 

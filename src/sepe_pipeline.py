@@ -841,6 +841,9 @@ def generate_interactive_graphs(csv_path: Path) -> list[Path]:
     return [
         write_interactive_regional_coverage(read_regional_coverage_by_year(csv_path)),
         write_interactive_age_profile(read_age_profile_by_year(csv_path)),
+        write_interactive_regional_subsidy_share(read_regional_subsidy_share_by_year(csv_path)),
+        write_interactive_age_gender_share(read_age_gender_share_by_year(csv_path)),
+        write_interactive_coverage_heatmap(read_regional_coverage_by_year(csv_path)),
     ]
 
 
@@ -862,6 +865,39 @@ def write_interactive_age_profile(data: dict[int, list[dict]]) -> Path:
         "perfil_edad",
         data,
         AGE_PROFILE_JS,
+    ), encoding="utf-8")
+    return path
+
+
+def write_interactive_regional_subsidy_share(data: dict[int, dict]) -> Path:
+    path = INTERACTIVE_DIR / "peso_subsidios_ccaa.html"
+    path.write_text(interactive_html(
+        "Peso de subsidios en el total de beneficiarios",
+        "peso_subsidios_ccaa",
+        data,
+        REGIONAL_SUBSIDY_SHARE_JS,
+    ), encoding="utf-8")
+    return path
+
+
+def write_interactive_age_gender_share(data: dict[int, list[dict]]) -> Path:
+    path = INTERACTIVE_DIR / "peso_mujeres_por_edad.html"
+    path.write_text(interactive_html(
+        "Peso de mujeres por tramo de edad",
+        "peso_mujeres_edad",
+        data,
+        AGE_GENDER_SHARE_JS,
+    ), encoding="utf-8")
+    return path
+
+
+def write_interactive_coverage_heatmap(data: dict[int, dict]) -> Path:
+    path = INTERACTIVE_DIR / "mapa_calor_tasa_cobertura_ccaa.html"
+    path.write_text(interactive_html(
+        "Tasa de cobertura por comunidad autónoma y año",
+        "mapa_calor_cobertura",
+        data,
+        COVERAGE_HEATMAP_JS,
     ), encoding="utf-8")
     return path
 
@@ -1022,6 +1058,10 @@ REGIONAL_COVERAGE_JS = r"""
     slider.max = years.length - 1;
     slider.value = years.length - 1;
     slider.addEventListener("input", () => draw(years[Number(slider.value)]));
+    const fixedMax = Math.ceil(Math.max(...years.flatMap(year => [
+      chartData[year].spain,
+      ...chartData[year].regions.map(row => row.coverage)
+    ])) / 20) * 20;
 
     function el(name, attrs = {}, parent = svg) {
       const node = document.createElementNS("http://www.w3.org/2000/svg", name);
@@ -1048,7 +1088,7 @@ REGIONAL_COVERAGE_JS = r"""
       const margin = { top: 18, right: 36, bottom: 42, left: 190 };
       const width = 920 - margin.left - margin.right;
       const height = 430 - margin.top - margin.bottom;
-      const maxValue = Math.max(...rows.map(d => d.coverage), spain) * 1.08;
+      const maxValue = fixedMax;
       const step = height / rows.length;
       const x = value => margin.left + value / maxValue * width;
       const y = index => margin.top + index * step + step * 0.16;
@@ -1094,6 +1134,7 @@ AGE_PROFILE_JS = r"""
     slider.max = years.length - 1;
     slider.value = years.length - 1;
     slider.addEventListener("input", () => draw(years[Number(slider.value)]));
+    const fixedMax = Math.ceil(Math.max(...years.flatMap(year => chartData[year].map(row => row.total))) / 100000) * 100000;
 
     function el(name, attrs = {}, parent = svg) {
       const node = document.createElementNS("http://www.w3.org/2000/svg", name);
@@ -1122,7 +1163,7 @@ AGE_PROFILE_JS = r"""
       const margin = { top: 20, right: 26, bottom: 86, left: 72 };
       const width = 920 - margin.left - margin.right;
       const height = 430 - margin.top - margin.bottom;
-      const maxValue = Math.max(...rows.map(d => d.total)) * 1.15;
+      const maxValue = fixedMax;
       const band = width / rows.length;
       const x = index => margin.left + index * band + band * 0.18;
       const barWidth = band * 0.64;
@@ -1154,6 +1195,206 @@ AGE_PROFILE_JS = r"""
       el("text", { x: margin.left + 200, y: 18, fill: "#404040", "font-size": 12 }).textContent = "Subsidios de desempleo";
     }
     draw(years[years.length - 1]);
+"""
+
+
+REGIONAL_SUBSIDY_SHARE_JS = r"""
+    const years = Object.keys(chartData).map(Number).sort((a, b) => a - b);
+    const slider = document.getElementById("yearSlider");
+    const yearLabel = document.getElementById("yearLabel");
+    const headline = document.getElementById("headline");
+    const svg = document.getElementById("peso_subsidios_ccaa");
+    const tooltip = document.getElementById("tooltip");
+    slider.min = 0;
+    slider.max = years.length - 1;
+    slider.value = years.length - 1;
+    slider.addEventListener("input", () => draw(years[Number(slider.value)]));
+
+    function el(name, attrs = {}, parent = svg) {
+      const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      parent.appendChild(node);
+      return node;
+    }
+    function clear() { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+    function fmt(value) { return value.toLocaleString("es-ES", { maximumFractionDigits: 1 }); }
+    function showTip(event, html) {
+      tooltip.innerHTML = html;
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.style.opacity = 1;
+    }
+    function hideTip() { tooltip.style.opacity = 0; }
+    function draw(year) {
+      clear();
+      yearLabel.textContent = year;
+      const payload = chartData[year];
+      const rows = [...payload.regions].sort((a, b) => a.share - b.share);
+      const spain = payload.spain;
+      headline.textContent = `${fmt(spain)} España`;
+      const margin = { top: 18, right: 36, bottom: 42, left: 190 };
+      const width = 920 - margin.left - margin.right;
+      const height = 430 - margin.top - margin.bottom;
+      const maxValue = 100;
+      const step = height / rows.length;
+      const x = value => margin.left + value / maxValue * width;
+      const y = index => margin.top + index * step + step * 0.16;
+
+      for (let tick = 0; tick <= 100; tick += 20) {
+        const tx = x(tick);
+        el("line", { x1: tx, y1: margin.top, x2: tx, y2: margin.top + height, stroke: "#D9D9D9" });
+        el("text", { x: tx, y: margin.top + height + 22, "text-anchor": "middle", fill: "#404040", "font-size": 12 }).textContent = tick;
+      }
+      const sx = x(spain);
+      el("line", { x1: sx, y1: margin.top - 4, x2: sx, y2: margin.top + height, stroke: "#404040", "stroke-width": 3 });
+      el("text", { x: sx + 6, y: margin.top + 12, fill: "#404040", "font-size": 12, "font-weight": 700 }).textContent = "España";
+
+      rows.forEach((row, i) => {
+        const barWidth = Math.max(0, x(row.share) - margin.left);
+        el("text", { x: margin.left - 10, y: y(i) + step * 0.35, "text-anchor": "end", fill: "#404040", "font-size": 12 }).textContent = row.short;
+        const rect = el("rect", {
+          x: margin.left,
+          y: y(i),
+          width: barWidth,
+          height: step * 0.58,
+          fill: row.share >= spain ? "#83082A" : "#E397A0",
+          rx: 2
+        });
+        rect.addEventListener("mousemove", event => showTip(event, `<strong>${row.region}</strong><br>Subsidios: ${fmt(row.share)}<br>España: ${fmt(spain)}`));
+        rect.addEventListener("mouseleave", hideTip);
+        el("text", { x: x(row.share) + 6, y: y(i) + step * 0.38, fill: "#404040", "font-size": 11 }).textContent = fmt(row.share);
+      });
+    }
+    draw(years[years.length - 1]);
+"""
+
+
+AGE_GENDER_SHARE_JS = r"""
+    const years = Object.keys(chartData).map(Number).sort((a, b) => a - b);
+    const slider = document.getElementById("yearSlider");
+    const yearLabel = document.getElementById("yearLabel");
+    const headline = document.getElementById("headline");
+    const svg = document.getElementById("peso_mujeres_edad");
+    const tooltip = document.getElementById("tooltip");
+    slider.min = 0;
+    slider.max = years.length - 1;
+    slider.value = years.length - 1;
+    slider.addEventListener("input", () => draw(years[Number(slider.value)]));
+
+    function el(name, attrs = {}, parent = svg) {
+      const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      parent.appendChild(node);
+      return node;
+    }
+    function clear() { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+    function fmt(value) { return value.toLocaleString("es-ES", { maximumFractionDigits: 1 }); }
+    function showTip(event, html) {
+      tooltip.innerHTML = html;
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.style.opacity = 1;
+    }
+    function hideTip() { tooltip.style.opacity = 0; }
+    function draw(year) {
+      clear();
+      yearLabel.textContent = year;
+      const rows = chartData[year];
+      const average = rows.reduce((sum, row) => sum + row.share, 0) / rows.length;
+      headline.textContent = `${fmt(average)} media`;
+      const margin = { top: 20, right: 26, bottom: 86, left: 64 };
+      const width = 920 - margin.left - margin.right;
+      const height = 430 - margin.top - margin.bottom;
+      const maxValue = 100;
+      const band = width / rows.length;
+      const x = index => margin.left + index * band + band * 0.18;
+      const barWidth = band * 0.64;
+      const y = value => margin.top + height - value / maxValue * height;
+
+      for (let tick = 0; tick <= maxValue; tick += 20) {
+        const ty = y(tick);
+        el("line", { x1: margin.left, y1: ty, x2: margin.left + width, y2: ty, stroke: "#D9D9D9" });
+        el("text", { x: margin.left - 10, y: ty + 4, "text-anchor": "end", fill: "#404040", "font-size": 12 }).textContent = tick;
+      }
+      el("line", { x1: margin.left, y1: y(50), x2: margin.left + width, y2: y(50), stroke: "#404040", "stroke-width": 2 });
+      rows.forEach((row, i) => {
+        const bx = x(i);
+        const by = y(row.share);
+        const rect = el("rect", {
+          x: bx,
+          y: by,
+          width: barWidth,
+          height: margin.top + height - by,
+          fill: row.share >= 50 ? "#83082A" : "#E397A0",
+          rx: 2
+        });
+        rect.addEventListener("mousemove", event => showTip(event, `<strong>${row.age}</strong><br>Mujeres: ${fmt(row.share)}<br>Hombres: ${fmt(100 - row.share)}`));
+        rect.addEventListener("mouseleave", hideTip);
+        el("text", { x: bx + barWidth / 2, y: margin.top + height + 18, "text-anchor": "end", fill: "#404040", "font-size": 11, transform: `rotate(-38 ${bx + barWidth / 2} ${margin.top + height + 18})` }).textContent = row.age;
+      });
+    }
+    draw(years[years.length - 1]);
+"""
+
+
+COVERAGE_HEATMAP_JS = r"""
+    document.querySelector(".controls").style.display = "none";
+    const years = Object.keys(chartData).map(Number).sort((a, b) => a - b);
+    const svg = document.getElementById("mapa_calor_cobertura");
+    const tooltip = document.getElementById("tooltip");
+    const headline = document.getElementById("headline");
+    headline.textContent = `${years[0]}-${years[years.length - 1]}`;
+
+    function el(name, attrs = {}, parent = svg) {
+      const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      parent.appendChild(node);
+      return node;
+    }
+    function fmt(value) { return value.toLocaleString("es-ES", { maximumFractionDigits: 1 }); }
+    function showTip(event, html) {
+      tooltip.innerHTML = html;
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.style.opacity = 1;
+    }
+    function hideTip() { tooltip.style.opacity = 0; }
+    const regions = chartData[years[0]].regions.map(row => row.region);
+    const allValues = years.flatMap(year => chartData[year].regions.map(row => row.coverage));
+    const minValue = Math.floor(Math.min(...allValues) / 5) * 5;
+    const maxValue = Math.ceil(Math.max(...allValues) / 5) * 5;
+    const margin = { top: 26, right: 28, bottom: 48, left: 190 };
+    const width = 920 - margin.left - margin.right;
+    const height = 430 - margin.top - margin.bottom;
+    const cellW = width / years.length;
+    const cellH = height / regions.length;
+    function color(value) {
+      const t = Math.max(0, Math.min(1, (value - minValue) / (maxValue - minValue)));
+      const start = [243, 214, 218];
+      const end = [131, 8, 42];
+      const rgb = start.map((s, i) => Math.round(s + (end[i] - s) * t));
+      return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    }
+    years.forEach((year, xIndex) => {
+      el("text", { x: margin.left + xIndex * cellW + cellW / 2, y: margin.top + height + 22, "text-anchor": "middle", fill: "#404040", "font-size": 12 }).textContent = year;
+      const byRegion = Object.fromEntries(chartData[year].regions.map(row => [row.region, row.coverage]));
+      regions.forEach((region, yIndex) => {
+        const value = byRegion[region];
+        const rect = el("rect", {
+          x: margin.left + xIndex * cellW,
+          y: margin.top + yIndex * cellH,
+          width: cellW - 1,
+          height: cellH - 1,
+          fill: color(value)
+        });
+        rect.addEventListener("mousemove", event => showTip(event, `<strong>${region}</strong><br>${year}: ${fmt(value)}`));
+        rect.addEventListener("mouseleave", hideTip);
+      });
+    });
+    regions.forEach((region, yIndex) => {
+      el("text", { x: margin.left - 10, y: margin.top + yIndex * cellH + cellH * 0.66, "text-anchor": "end", fill: "#404040", "font-size": 12 }).textContent = chartData[years[0]].regions.find(row => row.region === region).short;
+    });
+    el("text", { x: margin.left, y: 16, fill: "#404040", "font-size": 12 }).textContent = `Escala fija: ${minValue}-${maxValue}`;
 """
 
 
@@ -1359,6 +1600,90 @@ def read_age_profile_by_year(csv_path: Path) -> dict[int, list[dict]]:
                 "subsidios": subsidios,
                 "total": contributiva + subsidios,
             })
+        out[year] = sorted(rows, key=lambda row: age_order[row["age"]])
+    return out
+
+
+def read_regional_subsidy_share_by_year(csv_path: Path) -> dict[int, dict]:
+    regions: dict[int, dict[str, dict[str, float]]] = {}
+    spain: dict[int, dict[str, float]] = {}
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            if row.get("sexo") != "Ambos sexos" or row.get("edad") != "Todas las edades":
+                continue
+            contributiva = parse_csv_number(row.get("total prestacion contributiva")) or 0
+            subsidios = parse_csv_number(row.get("total subsidios de desempleo")) or 0
+            if contributiva + subsidios == 0:
+                continue
+            year = int(row["año"])
+            level = row.get("nivel geografico")
+            if level == "comunidad_autonoma":
+                region = row.get("comunidad autonoma")
+                bucket = regions.setdefault(year, {}).setdefault(region, {"contributiva": 0, "subsidios": 0})
+            elif level == "espana":
+                bucket = spain.setdefault(year, {"contributiva": 0, "subsidios": 0})
+            else:
+                continue
+            bucket["contributiva"] += contributiva
+            bucket["subsidios"] += subsidios
+
+    out = {}
+    for year in sorted(regions):
+        if year not in spain:
+            continue
+        spain_total = spain[year]["contributiva"] + spain[year]["subsidios"]
+        out[year] = {
+            "spain": spain[year]["subsidios"] / spain_total * 100,
+            "regions": [
+                {
+                    "region": region,
+                    "short": short_region_name(region),
+                    "share": values["subsidios"] / (values["contributiva"] + values["subsidios"]) * 100,
+                }
+                for region, values in sorted(regions[year].items())
+                if values["contributiva"] + values["subsidios"]
+            ],
+        }
+    return out
+
+
+def read_age_gender_share_by_year(csv_path: Path) -> dict[int, list[dict]]:
+    age_order = {
+        "16 - 19 años": 1,
+        "20 - 24 años": 2,
+        "25 - 29 años": 3,
+        "30 - 34 años": 4,
+        "35 - 39 años": 5,
+        "40 - 44 años": 6,
+        "45 - 49 años": 7,
+        "50 - 54 años": 8,
+        "55 - 59 años": 9,
+        "60 y más años": 10,
+    }
+    grouped: dict[int, dict[str, dict[str, float]]] = {}
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            if row.get("nivel geografico") != "espana" or row.get("sexo") not in {"Hombres", "Mujeres"}:
+                continue
+            age = row.get("edad")
+            if age not in age_order:
+                continue
+            total = safe_sum(
+                parse_csv_number(row.get("total prestacion contributiva")),
+                parse_csv_number(row.get("total subsidios de desempleo")),
+            )
+            if total is None:
+                continue
+            year = int(row["año"])
+            grouped.setdefault(year, {}).setdefault(age, {"Hombres": 0, "Mujeres": 0})[row["sexo"]] += total
+
+    out = {}
+    for year in sorted(grouped):
+        rows = []
+        for age, values in grouped[year].items():
+            total = values["Hombres"] + values["Mujeres"]
+            if total:
+                rows.append({"age": age, "share": values["Mujeres"] / total * 100})
         out[year] = sorted(rows, key=lambda row: age_order[row["age"]])
     return out
 
