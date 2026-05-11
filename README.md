@@ -59,6 +59,10 @@ py main.py --from-year 2024 --to-year 2026
 - `Gráficos/evolucion_beneficiarios_tasa_cobertura.svg`: beneficiarios de prestación contributiva, subsidios, total de beneficiarios y tasa de cobertura, en formato vectorial AIReF.
 - `Gráficos/composicion_beneficiarios_prestaciones.svg`: composición del total nacional por prestación contributiva y subsidios, en formato vectorial AIReF.
 - `Gráficos/indice_beneficiarios_tasa_cobertura.svg`: comparación indexada entre total de beneficiarios y tasa de cobertura, en formato vectorial AIReF.
+- `Gráficos/perfil_edad_beneficiarios.svg`: perfil nacional por edad de beneficiarios de prestación contributiva y subsidios, en formato vectorial AIReF.
+- `Gráficos/peso_beneficiarias_por_sexo.svg`: peso relativo de mujeres y hombres en el total de beneficiarios, en formato vectorial AIReF.
+- `Gráficos/tasa_cobertura_ccaa_ultimo_periodo.svg`: heterogeneidad territorial de la tasa de cobertura en el último periodo disponible, en formato vectorial AIReF.
+- `Gráficos/dispersion_ccaa_beneficiarios.svg`: rango territorial de la evolución indexada de beneficiarios por comunidad autónoma, en formato vectorial AIReF.
 - `data/figure_workbooks/*.xlsx`: libros auxiliares con título en `B2`, fuente en `B3`, nota en `B4` y tabla de datos desde `D5`.
 
 La tabla ancha empieza con:
@@ -116,8 +120,8 @@ Ejecución completa con figuras el 2026-05-11:
 - 109 Excel procesados.
 - 1.346.234 registros largos procesados internamente.
 - 226.611 filas en tabla ancha principal.
-- 3 figuras SVG generadas en `Gráficos/`.
-- 3 libros auxiliares generados en `data/figure_workbooks/`.
+- 7 figuras SVG generadas en `Gráficos/`.
+- 7 libros auxiliares generados en `data/figure_workbooks/`.
 
 ## Caché de descarga
 

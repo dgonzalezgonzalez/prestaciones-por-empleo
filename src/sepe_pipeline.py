@@ -594,6 +594,10 @@ def generate_figures(csv_path: Path) -> list[Path]:
         plot_beneficiaries_and_coverage(rows),
         plot_benefit_mix(rows),
         plot_coverage_vs_beneficiaries_index(rows),
+        plot_age_profile(csv_path),
+        plot_gender_share(csv_path),
+        plot_regional_coverage_latest(csv_path),
+        plot_regional_dispersion(csv_path),
     ]
     return [path for path in outputs if path]
 
@@ -736,6 +740,293 @@ def plot_coverage_vs_beneficiaries_index(rows: list[dict]) -> Path:
     return save_figure(fig, "indice_beneficiarios_tasa_cobertura.svg")
 
 
+def plot_age_profile(csv_path: Path) -> Path:
+    rows = read_age_profile(csv_path)
+    if not rows:
+        return Path()
+    ages = [row["age"] for row in rows]
+    contributiva = [row["contributiva"] for row in rows]
+    subsidios = [row["subsidios"] for row in rows]
+
+    fig, ax = plt.subplots(figsize=(6, 3))
+    x = range(len(rows))
+    ax.bar(x, contributiva, color="#83082A", label="Prestación contributiva")
+    ax.bar(x, subsidios, bottom=contributiva, color="#E397A0", label="Subsidios de desempleo")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(ages, rotation=35, ha="right")
+    ax.yaxis.set_major_formatter(FuncFormatter(format_thousands))
+    ax.grid(axis="y")
+    ax.grid(axis="x", visible=False)
+    ax.tick_params(direction="out", colors="#404040")
+    ax.legend(loc="upper left", frameon=False, fontsize=8)
+    write_chart_workbook(
+        "perfil_edad_beneficiarios.xlsx",
+        f"Perfil por edad de los beneficiarios ({rows[0]['period_label']})",
+        ["Edad", "Prestación contributiva", "Subsidios de desempleo", "Total beneficiarios"],
+        ((row["age"], row["contributiva"], row["subsidios"], row["total"]) for row in rows),
+        "Fuente: AIReF a partir de SEPE.",
+        "Nota: Beneficiarios en personas. Datos nacionales para ambos sexos.",
+    )
+    return save_figure(fig, "perfil_edad_beneficiarios.svg")
+
+
+def plot_gender_share(csv_path: Path) -> Path:
+    rows = read_gender_share(csv_path)
+    if not rows:
+        return Path()
+    periods = [row["period"] for row in rows]
+    women_share = [row["women_share"] for row in rows]
+    men_share = [100 - value for value in women_share]
+
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.plot(periods, women_share, color="#83082A", linewidth=2, label="Mujeres")
+    ax.plot(periods, men_share, color="#404040", linewidth=1.5, label="Hombres")
+    ax.axhline(50, color="#D9D9D9", linewidth=1, linestyle=":")
+    ax.xaxis.set_major_locator(mdates.YearLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.yaxis.set_major_formatter(FuncFormatter(format_percent_no_symbol))
+    ax.grid(axis="y")
+    ax.grid(axis="x", visible=False)
+    ax.tick_params(direction="out", colors="#404040")
+    ax.legend(loc="upper left", frameon=False, fontsize=8)
+    write_chart_workbook(
+        "peso_beneficiarias_por_sexo.xlsx",
+        "Peso de mujeres y hombres en el total de beneficiarios",
+        ["Periodo", "Mujeres", "Hombres"],
+        zip(periods, women_share, men_share),
+        "Fuente: AIReF a partir de SEPE.",
+        "Nota: Porcentaje sobre beneficiarios con prestación contributiva o subsidio de desempleo.",
+    )
+    return save_figure(fig, "peso_beneficiarias_por_sexo.svg")
+
+
+def plot_regional_coverage_latest(csv_path: Path) -> Path:
+    rows = read_regional_latest(csv_path)
+    rows = [row for row in rows if row.get("coverage") is not None]
+    if not rows:
+        return Path()
+    rows = sorted(rows, key=lambda row: row["coverage"])
+    regions = [short_region_name(row["region"]) for row in rows]
+    values = [row["coverage"] for row in rows]
+    colors = ["#83082A" if value == max(values) else "#E397A0" for value in values]
+
+    fig, ax = plt.subplots(figsize=(6, 3))
+    y = range(len(rows))
+    ax.barh(y, values, color=colors)
+    ax.set_yticks(list(y))
+    ax.set_yticklabels(regions)
+    ax.xaxis.set_major_formatter(FuncFormatter(format_percent_no_symbol))
+    ax.grid(axis="x")
+    ax.grid(axis="y", visible=False)
+    ax.tick_params(direction="out", colors="#404040")
+    write_chart_workbook(
+        "tasa_cobertura_ccaa_ultimo_periodo.xlsx",
+        f"Tasa de cobertura por comunidad autónoma ({rows[0]['period_label']})",
+        ["Comunidad autónoma", "Tasa de cobertura"],
+        ((row["region"], row["coverage"]) for row in rows),
+        "Fuente: AIReF a partir de SEPE.",
+        "Nota: Tasa de cobertura en porcentaje. Se muestran las comunidades autónomas identificadas en la base procesada.",
+    )
+    return save_figure(fig, "tasa_cobertura_ccaa_ultimo_periodo.svg")
+
+
+def plot_regional_dispersion(csv_path: Path) -> Path:
+    rows = read_regional_dispersion(csv_path)
+    if not rows:
+        return Path()
+    periods = [row["period"] for row in rows]
+    minimum = [row["min"] for row in rows]
+    maximum = [row["max"] for row in rows]
+    median = [row["median"] for row in rows]
+    national = read_national_all_ages(csv_path)
+    national_by_period = {
+        row["period"]: safe_sum(row.get("total prestacion contributiva"), row.get("total subsidios de desempleo"))
+        for row in national
+    }
+    national_index = make_index([national_by_period.get(period) for period in periods])
+
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.fill_between(periods, minimum, maximum, color="#E397A0", alpha=0.45, label="Rango CCAA")
+    ax.plot(periods, median, color="#83082A", linewidth=2, label="Mediana CCAA")
+    ax.plot(periods, national_index, color="#404040", linewidth=1.5, linestyle="--", label="España")
+    ax.axhline(100, color="#D9D9D9", linewidth=1, linestyle=":")
+    ax.xaxis.set_major_locator(mdates.YearLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.grid(axis="y")
+    ax.grid(axis="x", visible=False)
+    ax.tick_params(direction="out", colors="#404040")
+    ax.legend(loc="upper left", frameon=False, fontsize=8)
+    write_chart_workbook(
+        "dispersion_ccaa_beneficiarios.xlsx",
+        "Dispersión territorial de los beneficiarios",
+        ["Periodo", "Mínimo CCAA", "Mediana CCAA", "Máximo CCAA", "España"],
+        zip(periods, minimum, median, maximum, national_index),
+        "Fuente: AIReF a partir de SEPE.",
+        "Nota: Índice base primer mes = 100. Beneficiarios con prestación contributiva o subsidio de desempleo.",
+    )
+    return save_figure(fig, "dispersion_ccaa_beneficiarios.svg")
+
+
+def read_age_profile(csv_path: Path) -> list[dict]:
+    rows = []
+    latest = latest_period(csv_path)
+    age_order = {
+        "16 - 19 años": 1,
+        "20 - 24 años": 2,
+        "25 - 29 años": 3,
+        "30 - 34 años": 4,
+        "35 - 39 años": 5,
+        "40 - 44 años": 6,
+        "45 - 49 años": 7,
+        "50 - 54 años": 8,
+        "55 - 59 años": 9,
+        "60 y más años": 10,
+    }
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            period = date(int(row["año"]), int(row["mes"]), 1)
+            if period != latest:
+                continue
+            if row.get("sexo") != "Ambos sexos" or row.get("nivel geografico") != "espana":
+                continue
+            age = row.get("edad")
+            if age not in age_order:
+                continue
+            contributiva = parse_csv_number(row.get("total prestacion contributiva")) or 0
+            subsidios = parse_csv_number(row.get("total subsidios de desempleo")) or 0
+            rows.append({
+                "age": age,
+                "contributiva": contributiva,
+                "subsidios": subsidios,
+                "total": contributiva + subsidios,
+                "period_label": period_label(period),
+            })
+    return sorted(rows, key=lambda row: age_order[row["age"]])
+
+
+def read_gender_share(csv_path: Path) -> list[dict]:
+    by_period: dict[date, dict[str, float]] = {}
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            if row.get("edad") != "Todas las edades" or row.get("nivel geografico") != "espana":
+                continue
+            if row.get("sexo") not in {"Hombres", "Mujeres"}:
+                continue
+            period = date(int(row["año"]), int(row["mes"]), 1)
+            total = safe_sum(
+                parse_csv_number(row.get("total prestacion contributiva")),
+                parse_csv_number(row.get("total subsidios de desempleo")),
+            )
+            if total is not None:
+                by_period.setdefault(period, {})[row["sexo"]] = total
+    rows = []
+    for period, values in sorted(by_period.items()):
+        men = values.get("Hombres")
+        women = values.get("Mujeres")
+        if men and women:
+            rows.append({"period": period, "women_share": women / (men + women) * 100})
+    return rows
+
+
+def read_regional_latest(csv_path: Path) -> list[dict]:
+    latest = latest_period(csv_path)
+    rows = []
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            period = date(int(row["año"]), int(row["mes"]), 1)
+            if period != latest:
+                continue
+            if row.get("sexo") != "Ambos sexos" or row.get("edad") != "Todas las edades":
+                continue
+            if row.get("nivel geografico") != "comunidad_autonoma":
+                continue
+            rows.append({
+                "region": row.get("comunidad autonoma"),
+                "coverage": parse_csv_number(row.get("tasa de cobertura")),
+                "period_label": period_label(period),
+            })
+    return rows
+
+
+def read_regional_dispersion(csv_path: Path) -> list[dict]:
+    by_period: dict[date, dict[str, float]] = {}
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            if row.get("sexo") != "Ambos sexos" or row.get("edad") != "Todas las edades":
+                continue
+            if row.get("nivel geografico") != "comunidad_autonoma":
+                continue
+            period = date(int(row["año"]), int(row["mes"]), 1)
+            total = safe_sum(
+                parse_csv_number(row.get("total prestacion contributiva")),
+                parse_csv_number(row.get("total subsidios de desempleo")),
+            )
+            if total is not None:
+                by_period.setdefault(period, {})[row["comunidad autonoma"]] = total
+    rows = []
+    first_period = min(by_period) if by_period else None
+    if not first_period:
+        return rows
+    regions = sorted(by_period[first_period])
+    for period in sorted(by_period):
+        values = by_period[period]
+        if sorted(values) != regions:
+            continue
+        period_index = [
+            values[region] / by_period[first_period][region] * 100
+            for region in regions
+            if by_period[first_period][region]
+        ]
+        if period_index:
+            rows.append({
+                "period": period,
+                "min": min(period_index),
+                "median": median(period_index),
+                "max": max(period_index),
+            })
+    return rows
+
+
+def latest_period(csv_path: Path) -> date:
+    latest = None
+    with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+        for row in csv.DictReader(fh):
+            period = date(int(row["año"]), int(row["mes"]), 1)
+            latest = period if latest is None or period > latest else latest
+    if latest is None:
+        raise ValueError(f"No periods found in {csv_path}")
+    return latest
+
+
+def make_index(values: list[float | None]) -> list[float | None]:
+    base = next((value for value in values if value), None)
+    if not base:
+        return [None for _ in values]
+    return [value / base * 100 if value else None for value in values]
+
+
+def median(values: list[float]) -> float:
+    ordered = sorted(values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[midpoint]
+    return (ordered[midpoint - 1] + ordered[midpoint]) / 2
+
+
+def period_label(period: date) -> str:
+    return f"{period.year}-{period.month:02d}"
+
+
+def short_region_name(name: str) -> str:
+    replacements = {
+        "Asturias, Principado de": "Asturias",
+        "Madrid, Comunidad de": "Madrid",
+        "Murcia, Región de": "Murcia",
+        "Navarra, Comunidad Foral de": "Navarra",
+    }
+    return replacements.get(name, name)
+
+
 def save_figure(fig, filename: str) -> Path:
     path = FIGURES_DIR / filename
     fig.tight_layout()
@@ -772,6 +1063,10 @@ def safe_sum(left, right):
 
 def format_thousands(value, _position):
     return f"{value / 1_000_000:.1f}M" if abs(value) >= 1_000_000 else f"{value:,.0f}".replace(",", ".")
+
+
+def format_percent_no_symbol(value, _position):
+    return f"{value:.0f}"
 
 
 def make_wide(records: list[dict], all_ages_only: bool) -> list[dict]:
