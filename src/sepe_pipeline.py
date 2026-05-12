@@ -29,6 +29,8 @@ FIGURES_DIR = Path("Gráficos")
 FIGURE_WORKBOOKS_DIR = Path("data/figure_workbooks")
 INTERACTIVE_DIR = Path("data/interactive")
 MANIFEST_PATH = Path("data/manifest.json")
+AIREF_FIGSIZE = (14.5 / 2.54, 7.25 / 2.54)
+AIREF_PNG_DPI = 300
 
 TARGET_SHEETS = {
     "BP-2.1a": ("total prestacion contributiva", "Ambos sexos", "age"),
@@ -651,7 +653,7 @@ def plot_beneficiaries_and_coverage(rows: list[dict]) -> Path:
     total = [safe_sum(a, b) for a, b in zip(contributiva, subsidios)]
     coverage = [row.get("tasa de cobertura") for row in rows]
 
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=AIREF_FIGSIZE)
     ax.plot(periods, total, color="#83082A", linewidth=2, label="Total beneficiarios")
     ax.plot(periods, contributiva, color="#D00D43", linewidth=1.5, label="Prestación contributiva")
     ax.plot(periods, subsidios, color="#E397A0", linewidth=1.5, label="Subsidios de desempleo")
@@ -686,7 +688,7 @@ def plot_benefit_mix(rows: list[dict]) -> Path:
     contributiva = [row.get("total prestacion contributiva") or 0 for row in rows]
     subsidios = [row.get("total subsidios de desempleo") or 0 for row in rows]
 
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=AIREF_FIGSIZE)
     ax.stackplot(
         periods,
         contributiva,
@@ -725,7 +727,7 @@ def plot_coverage_vs_beneficiaries_index(rows: list[dict]) -> Path:
     if not base_total or not base_coverage:
         return Path()
 
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=AIREF_FIGSIZE)
     ax.axhline(100, color="#8a94a6", linewidth=1, linestyle=":")
     beneficiaries_index = [value / base_total * 100 if value else None for value in total]
     coverage_index = [value / base_coverage * 100 if value else None for value in coverage]
@@ -756,7 +758,7 @@ def plot_age_profile(csv_path: Path) -> Path:
     contributiva = [row["contributiva"] for row in rows]
     subsidios = [row["subsidios"] for row in rows]
 
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=AIREF_FIGSIZE)
     x = range(len(rows))
     ax.bar(x, contributiva, color="#83082A", label="Prestación contributiva")
     ax.bar(x, subsidios, bottom=contributiva, color="#E397A0", label="Subsidios de desempleo")
@@ -786,7 +788,7 @@ def plot_gender_share(csv_path: Path) -> Path:
     women_share = [row["women_share"] for row in rows]
     men_share = [100 - value for value in women_share]
 
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=AIREF_FIGSIZE)
     ax.plot(periods, women_share, color="#83082A", linewidth=2, label="Mujeres")
     ax.plot(periods, men_share, color="#404040", linewidth=1.5, label="Hombres")
     ax.axhline(50, color="#D9D9D9", linewidth=1, linestyle=":")
@@ -819,7 +821,7 @@ def plot_regional_coverage_latest(csv_path: Path) -> Path:
     values = [row["coverage"] for row in rows]
     colors = ["#83082A" if value == max(values) else "#E397A0" for value in values]
 
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=AIREF_FIGSIZE)
     y = range(len(rows))
     ax.barh(y, values, color=colors)
     ax.set_yticks(list(y))
@@ -1419,7 +1421,7 @@ def plot_regional_dispersion(csv_path: Path) -> Path:
     }
     national_index = make_index([national_by_period.get(period) for period in periods])
 
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=AIREF_FIGSIZE)
     ax.fill_between(periods, minimum, maximum, color="#E397A0", alpha=0.45, label="Rango CCAA")
     ax.plot(periods, median, color="#83082A", linewidth=2, label="Mediana CCAA")
     ax.plot(periods, national_index, color="#404040", linewidth=1.5, linestyle="--", label="España")
@@ -1780,9 +1782,9 @@ def short_region_name(name: str) -> str:
 def save_figure(fig, filename: str) -> Path:
     path = FIGURES_DIR / filename
     fig.tight_layout()
-    fig.savefig(path, bbox_inches="tight")
+    fig.savefig(path)
     if path.suffix.lower() == ".svg":
-        fig.savefig(path.with_suffix(".png"), dpi=300, bbox_inches="tight")
+        fig.savefig(path.with_suffix(".png"), dpi=AIREF_PNG_DPI)
     plt.close(fig)
     return path
 
