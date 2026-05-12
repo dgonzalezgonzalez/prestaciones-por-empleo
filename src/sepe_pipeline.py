@@ -31,6 +31,9 @@ INTERACTIVE_DIR = Path("data/interactive")
 MANIFEST_PATH = Path("data/manifest.json")
 AIREF_FIGSIZE = (14.5 / 2.54, 7.25 / 2.54)
 AIREF_PNG_DPI = 300
+AIREF_TEXT = "#404040"
+AIREF_TICK = "#4D4D4D"
+AIREF_GRID = "#CCCCCC"
 
 TARGET_SHEETS = {
     "BP-2.1a": ("total prestacion contributiva", "Ambos sexos", "age"),
@@ -584,11 +587,13 @@ def generate_figures(csv_path: Path) -> list[Path]:
         "axes.titlecolor": "#404040",
         "axes.spines.right": False,
         "axes.spines.top": False,
-        "grid.color": "#D9D9D9",
-        "grid.linewidth": 0.6,
+        "grid.color": AIREF_GRID,
+        "grid.linewidth": 1.0,
         "figure.facecolor": "white",
-        "font.family": "Century Gothic",
+        "font.family": ["Century Gothic", "DejaVu Sans"],
         "font.size": 9,
+        "font.weight": "bold",
+        "axes.labelweight": "bold",
         "savefig.dpi": 180,
         "svg.fonttype": "none",
     })
@@ -728,7 +733,7 @@ def plot_coverage_vs_beneficiaries_index(rows: list[dict]) -> Path:
         return Path()
 
     fig, ax = plt.subplots(figsize=AIREF_FIGSIZE)
-    ax.axhline(100, color="#8a94a6", linewidth=1, linestyle=":")
+    ax.axhline(100, color=AIREF_GRID, linewidth=1, linestyle=":")
     beneficiaries_index = [value / base_total * 100 if value else None for value in total]
     coverage_index = [value / base_coverage * 100 if value else None for value in coverage]
     ax.plot(periods, beneficiaries_index, color="#83082A", linewidth=2, label="Beneficiarios")
@@ -791,7 +796,7 @@ def plot_gender_share(csv_path: Path) -> Path:
     fig, ax = plt.subplots(figsize=AIREF_FIGSIZE)
     ax.plot(periods, women_share, color="#83082A", linewidth=2, label="Mujeres")
     ax.plot(periods, men_share, color="#404040", linewidth=1.5, label="Hombres")
-    ax.axhline(50, color="#D9D9D9", linewidth=1, linestyle=":")
+    ax.axhline(50, color=AIREF_GRID, linewidth=1, linestyle=":")
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     ax.yaxis.set_major_formatter(FuncFormatter(format_percent_no_symbol))
@@ -924,7 +929,7 @@ def interactive_html(title: str, chart_id: str, data, renderer: str) -> str:
       --airef-crimson: #D00D43;
       --airef-rose: #E397A0;
       --airef-text: #404040;
-      --airef-grid: #D9D9D9;
+      --airef-grid: #CCCCCC;
       --panel: #ffffff;
       --page: #f7f5f5;
     }}
@@ -1103,7 +1108,7 @@ REGIONAL_COVERAGE_JS = r"""
 
       for (let tick = 0; tick <= maxValue; tick += 20) {
         const tx = x(tick);
-        el("line", { x1: tx, y1: margin.top, x2: tx, y2: margin.top + height, stroke: "#D9D9D9" });
+        el("line", { x1: tx, y1: margin.top, x2: tx, y2: margin.top + height, stroke: "#CCCCCC" });
         el("text", { x: tx, y: margin.top + height + 22, "text-anchor": "middle", fill: "#404040", "font-size": 12 }).textContent = tick;
       }
 
@@ -1179,7 +1184,7 @@ AGE_PROFILE_JS = r"""
 
       for (let tick = 0; tick <= maxValue; tick += 100000) {
         const ty = y(tick);
-        el("line", { x1: margin.left, y1: ty, x2: margin.left + width, y2: ty, stroke: "#D9D9D9" });
+        el("line", { x1: margin.left, y1: ty, x2: margin.left + width, y2: ty, stroke: "#CCCCCC" });
         el("text", { x: margin.left - 10, y: ty + 4, "text-anchor": "end", fill: "#404040", "font-size": 12 }).textContent = fmtShort(tick);
       }
 
@@ -1250,7 +1255,7 @@ REGIONAL_SUBSIDY_SHARE_JS = r"""
 
       for (let tick = 0; tick <= 100; tick += 20) {
         const tx = x(tick);
-        el("line", { x1: tx, y1: margin.top, x2: tx, y2: margin.top + height, stroke: "#D9D9D9" });
+        el("line", { x1: tx, y1: margin.top, x2: tx, y2: margin.top + height, stroke: "#CCCCCC" });
         el("text", { x: tx, y: margin.top + height + 22, "text-anchor": "middle", fill: "#404040", "font-size": 12 }).textContent = tick;
       }
       const sx = x(spain);
@@ -1321,7 +1326,7 @@ AGE_GENDER_SHARE_JS = r"""
 
       for (let tick = 0; tick <= maxValue; tick += 20) {
         const ty = y(tick);
-        el("line", { x1: margin.left, y1: ty, x2: margin.left + width, y2: ty, stroke: "#D9D9D9" });
+        el("line", { x1: margin.left, y1: ty, x2: margin.left + width, y2: ty, stroke: "#CCCCCC" });
         el("text", { x: margin.left - 10, y: ty + 4, "text-anchor": "end", fill: "#404040", "font-size": 12 }).textContent = tick;
       }
       el("line", { x1: margin.left, y1: y(50), x2: margin.left + width, y2: y(50), stroke: "#404040", "stroke-width": 2 });
@@ -1425,7 +1430,7 @@ def plot_regional_dispersion(csv_path: Path) -> Path:
     ax.fill_between(periods, minimum, maximum, color="#E397A0", alpha=0.45, label="Rango CCAA")
     ax.plot(periods, median, color="#83082A", linewidth=2, label="Mediana CCAA")
     ax.plot(periods, national_index, color="#404040", linewidth=1.5, linestyle="--", label="España")
-    ax.axhline(100, color="#D9D9D9", linewidth=1, linestyle=":")
+    ax.axhline(100, color=AIREF_GRID, linewidth=1, linestyle=":")
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     ax.grid(axis="y")
@@ -1782,11 +1787,44 @@ def short_region_name(name: str) -> str:
 def save_figure(fig, filename: str) -> Path:
     path = FIGURES_DIR / filename
     fig.tight_layout()
+    apply_airef_matplotlib_figure(fig)
     fig.savefig(path)
     if path.suffix.lower() == ".svg":
         fig.savefig(path.with_suffix(".png"), dpi=AIREF_PNG_DPI)
     plt.close(fig)
     return path
+
+
+def apply_airef_matplotlib_figure(fig) -> None:
+    for index, ax in enumerate(fig.axes):
+        ax.set_title("")
+        ax.set_facecolor("white")
+        ax.tick_params(
+            axis="both",
+            colors=AIREF_TEXT,
+            direction="out",
+            length=3,
+            width=1.0,
+            labelsize=9,
+        )
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+        for side in ("left", "bottom"):
+            ax.spines[side].set_color(AIREF_TEXT)
+            ax.spines[side].set_linewidth(1.0)
+        if index == 0:
+            ax.grid(axis="y", color=AIREF_GRID, linewidth=1.0)
+            ax.grid(axis="x", visible=False)
+        else:
+            ax.grid(False)
+        for label in ax.get_xticklabels() + ax.get_yticklabels():
+            label.set_color(AIREF_TICK)
+            label.set_fontweight("bold")
+        legend = ax.get_legend()
+        if legend:
+            for text in legend.get_texts():
+                text.set_color(AIREF_TEXT)
+                text.set_fontweight("bold")
 
 
 def write_chart_workbook(filename: str, title: str, headers: list[str], rows, source: str, note: str) -> Path:
