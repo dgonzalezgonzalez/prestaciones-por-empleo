@@ -591,7 +591,7 @@ def generate_figures(csv_path: Path) -> list[Path]:
         "svg.fonttype": "none",
     })
 
-    outputs = [
+    static_outputs = [
         plot_beneficiaries_and_coverage(rows),
         plot_benefit_mix(rows),
         plot_coverage_vs_beneficiaries_index(rows),
@@ -600,6 +600,12 @@ def generate_figures(csv_path: Path) -> list[Path]:
         plot_regional_coverage_latest(csv_path),
         plot_regional_dispersion(csv_path),
     ]
+    png_outputs = [
+        path.with_suffix(".png")
+        for path in static_outputs
+        if path and path.suffix.lower() == ".svg" and path.with_suffix(".png").exists()
+    ]
+    outputs = static_outputs + png_outputs
     outputs.extend(generate_interactive_graphs(csv_path))
     return [path for path in outputs if path]
 
@@ -1775,6 +1781,8 @@ def save_figure(fig, filename: str) -> Path:
     path = FIGURES_DIR / filename
     fig.tight_layout()
     fig.savefig(path, bbox_inches="tight")
+    if path.suffix.lower() == ".svg":
+        fig.savefig(path.with_suffix(".png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
     return path
 

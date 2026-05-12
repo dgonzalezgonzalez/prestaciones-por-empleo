@@ -56,13 +56,13 @@ py main.py --from-year 2024 --to-year 2026
 - `data/manifest.json`: URL, hash, tamaño, cabeceras y ruta local.
 - `data/processed/sepe_prestaciones_wide.csv`: tabla ancha principal, similar a `Libro1.xlsx`, con desagregación por tramos de edad cuando existe en los Excel originales.
 - `data/processed/sepe_prestaciones_wide.xlsx`: versión Excel de la tabla ancha principal.
-- `Gráficos/evolucion_beneficiarios_tasa_cobertura.svg`: beneficiarios de prestación contributiva, subsidios, total de beneficiarios y tasa de cobertura, en formato vectorial AIReF.
-- `Gráficos/composicion_beneficiarios_prestaciones.svg`: composición del total nacional por prestación contributiva y subsidios, en formato vectorial AIReF.
-- `Gráficos/indice_beneficiarios_tasa_cobertura.svg`: comparación indexada entre total de beneficiarios y tasa de cobertura, en formato vectorial AIReF.
-- `Gráficos/perfil_edad_beneficiarios.svg`: perfil nacional por edad de beneficiarios de prestación contributiva y subsidios, en formato vectorial AIReF.
-- `Gráficos/peso_beneficiarias_por_sexo.svg`: peso relativo de mujeres y hombres en el total de beneficiarios, en formato vectorial AIReF.
-- `Gráficos/tasa_cobertura_ccaa_ultimo_periodo.svg`: heterogeneidad territorial de la tasa de cobertura en el último periodo disponible, en formato vectorial AIReF.
-- `Gráficos/dispersion_ccaa_beneficiarios.svg`: rango territorial de la evolución indexada de beneficiarios por comunidad autónoma, en formato vectorial AIReF.
+- `Gráficos/evolucion_beneficiarios_tasa_cobertura.svg` y `.png`: beneficiarios de prestación contributiva, subsidios, total de beneficiarios y tasa de cobertura, en formato AIReF.
+- `Gráficos/composicion_beneficiarios_prestaciones.svg` y `.png`: composición del total nacional por prestación contributiva y subsidios, en formato AIReF.
+- `Gráficos/indice_beneficiarios_tasa_cobertura.svg` y `.png`: comparación indexada entre total de beneficiarios y tasa de cobertura, en formato AIReF.
+- `Gráficos/perfil_edad_beneficiarios.svg` y `.png`: perfil nacional por edad de beneficiarios de prestación contributiva y subsidios, en formato AIReF.
+- `Gráficos/peso_beneficiarias_por_sexo.svg` y `.png`: peso relativo de mujeres y hombres en el total de beneficiarios, en formato AIReF.
+- `Gráficos/tasa_cobertura_ccaa_ultimo_periodo.svg` y `.png`: heterogeneidad territorial de la tasa de cobertura en el último periodo disponible, en formato AIReF.
+- `Gráficos/dispersion_ccaa_beneficiarios.svg` y `.png`: rango territorial de la evolución indexada de beneficiarios por comunidad autónoma, en formato AIReF.
 - `data/figure_workbooks/*.xlsx`: libros auxiliares con título en `B2`, fuente en `B3`, nota en `B4` y tabla de datos desde `D5`.
 - `data/interactive/tasa_cobertura_ccaa_ultimo_periodo.html`: versión interactiva de la tasa de cobertura por comunidad autónoma, con selector anual, eje fijo y referencia de España.
 - `data/interactive/perfil_edad_beneficiarios.html`: versión interactiva del perfil por edad, con selector anual, eje fijo y desglose por prestación contributiva y subsidios.
@@ -125,7 +125,7 @@ Ejecución completa con figuras el 2026-05-11:
 - 109 Excel procesados.
 - 1.346.234 registros largos procesados internamente.
 - 226.611 filas en tabla ancha principal.
-- 7 figuras SVG generadas en `Gráficos/`.
+- 7 figuras SVG y 7 copias PNG generadas en `Gráficos/`.
 - 7 libros auxiliares generados en `data/figure_workbooks/`.
 - 5 gráficos interactivos HTML generados en `data/interactive/`.
 
