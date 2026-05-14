@@ -14,7 +14,7 @@ Pipeline en Python para descargar y transformar los informes mensuales de presta
   - `BP-3.5a`, `BP-3.5b`, `BP-3.5c`
   - `TC-1.1a`, `TC-1.1b`, `TC-1.1c`
 - Genera una base en formato ancho, en español.
-- Genera figuras de evolución nacional de prestaciones, beneficiarios y tasa de cobertura.
+- Genera dos figuras estáticas de síntesis y un dashboard HTML de estilo AIReF.
 
 ## Instalación
 
@@ -58,17 +58,8 @@ py main.py --from-year 2024 --to-year 2026
 - `data/processed/sepe_prestaciones_wide.xlsx`: versión Excel de la tabla ancha principal.
 - `Gráficos/evolucion_beneficiarios_tasa_cobertura.svg` y `.png`: beneficiarios de prestación contributiva, subsidios, total de beneficiarios y tasa de cobertura, en formato AIReF.
 - `Gráficos/composicion_beneficiarios_prestaciones.svg` y `.png`: composición del total nacional por prestación contributiva y subsidios, en formato AIReF.
-- `Gráficos/indice_beneficiarios_tasa_cobertura.svg` y `.png`: comparación indexada entre total de beneficiarios y tasa de cobertura, en formato AIReF.
-- `Gráficos/perfil_edad_beneficiarios.svg` y `.png`: perfil nacional por edad de beneficiarios de prestación contributiva y subsidios, en formato AIReF.
-- `Gráficos/peso_beneficiarias_por_sexo.svg` y `.png`: peso relativo de mujeres y hombres en el total de beneficiarios, en formato AIReF.
-- `Gráficos/tasa_cobertura_ccaa_ultimo_periodo.svg` y `.png`: heterogeneidad territorial de la tasa de cobertura en el último periodo disponible, en formato AIReF.
-- `Gráficos/dispersion_ccaa_beneficiarios.svg` y `.png`: rango territorial de la evolución indexada de beneficiarios por comunidad autónoma, en formato AIReF.
 - `data/figure_workbooks/*.xlsx`: libros auxiliares con título en `B2`, fuente en `B3`, nota en `B4` y tabla de datos desde `D5`.
-- `data/interactive/tasa_cobertura_ccaa_ultimo_periodo.html`: versión interactiva de la tasa de cobertura por comunidad autónoma, con selector anual, eje fijo y referencia de España.
-- `data/interactive/perfil_edad_beneficiarios.html`: versión interactiva del perfil por edad, con selector anual, eje fijo y desglose por prestación contributiva y subsidios.
-- `data/interactive/peso_subsidios_ccaa.html`: versión interactiva del peso de subsidios en el total de beneficiarios por comunidad autónoma, con selector anual, eje fijo y referencia de España.
-- `data/interactive/peso_mujeres_por_edad.html`: versión interactiva del peso de mujeres por tramo de edad, con selector anual y eje fijo de 0 a 100.
-- `data/interactive/mapa_calor_tasa_cobertura_ccaa.html`: mapa de calor interactivo de la tasa de cobertura por comunidad autónoma y año, con escala fija.
+- `data/dashboard/index.html`: dashboard HTML local con pestañas para prestación contributiva y subsidios de desempleo, filtros por sexo, edad, comunidad autónoma, provincia y periodo, gráficos con descarga CSV, mapa territorial y desglose de subsidios.
 
 La tabla ancha empieza con:
 
@@ -125,9 +116,9 @@ Ejecución completa con figuras el 2026-05-11:
 - 109 Excel procesados.
 - 1.346.234 registros largos procesados internamente.
 - 226.611 filas en tabla ancha principal.
-- 7 figuras SVG y 7 copias PNG generadas en `Gráficos/`.
-- 7 libros auxiliares generados en `data/figure_workbooks/`.
-- 5 gráficos interactivos HTML generados en `data/interactive/`.
+- 2 figuras SVG y 2 copias PNG generadas en `Gráficos/`.
+- 2 libros auxiliares generados en `data/figure_workbooks/`.
+- 1 dashboard HTML generado en `data/dashboard/index.html`.
 
 ## Caché de descarga
 

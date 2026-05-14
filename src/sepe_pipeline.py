@@ -21,6 +21,8 @@ import requests
 from openpyxl import Workbook
 from matplotlib.ticker import FuncFormatter
 
+from src.dashboard import generate_dashboard
+
 
 BASE_URL = "https://sepe.es/HomeSepe/que-es-el-sepe/estadisticas/estadisticas-prestaciones/informe-prestaciones.html"
 RAW_DIR = Path("data/raw")
@@ -598,14 +600,10 @@ def generate_figures(csv_path: Path) -> list[Path]:
         "svg.fonttype": "none",
     })
 
+    cleanup_removed_outputs()
     static_outputs = [
         plot_beneficiaries_and_coverage(rows),
         plot_benefit_mix(rows),
-        plot_coverage_vs_beneficiaries_index(rows),
-        plot_age_profile(csv_path),
-        plot_gender_share(csv_path),
-        plot_regional_coverage_latest(csv_path),
-        plot_regional_dispersion(csv_path),
     ]
     png_outputs = [
         path.with_suffix(".png")
@@ -613,8 +611,29 @@ def generate_figures(csv_path: Path) -> list[Path]:
         if path and path.suffix.lower() == ".svg" and path.with_suffix(".png").exists()
     ]
     outputs = static_outputs + png_outputs
-    outputs.extend(generate_interactive_graphs(csv_path))
+    outputs.append(generate_dashboard(csv_path))
     return [path for path in outputs if path]
+
+
+def cleanup_removed_outputs() -> None:
+    removed_figures = [
+        "indice_beneficiarios_tasa_cobertura",
+        "perfil_edad_beneficiarios",
+        "peso_beneficiarias_por_sexo",
+        "tasa_cobertura_ccaa_ultimo_periodo",
+        "dispersion_ccaa_beneficiarios",
+    ]
+    for stem in removed_figures:
+        for suffix in (".svg", ".png"):
+            path = FIGURES_DIR / f"{stem}{suffix}"
+            if path.exists():
+                path.unlink()
+        workbook = FIGURE_WORKBOOKS_DIR / f"{stem}.xlsx"
+        if workbook.exists():
+            workbook.unlink()
+    if INTERACTIVE_DIR.exists():
+        for path in INTERACTIVE_DIR.glob("*.html"):
+            path.unlink()
 
 
 def read_national_all_ages(csv_path: Path) -> list[dict]:
@@ -1937,7 +1956,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     if args.no_download:
-        paths = sorted(RAW_DIR.glob("*.xlsx"))
+        paths = sorted(path for path in RAW_DIR.glob("*.xlsx") if not path.name.startswith("~$"))
     else:
         files = discover_files()
         if args.from_year:
