@@ -60,6 +60,8 @@ py main.py --from-year 2024 --to-year 2026
 - `Gráficos/composicion_beneficiarios_prestaciones.svg` y `.png`: composición del total nacional por prestación contributiva y subsidios, en formato AIReF.
 - `data/figure_workbooks/*.xlsx`: libros auxiliares con título en `B2`, fuente en `B3`, nota en `B4` y tabla de datos desde `D5`.
 - `data/dashboard/index.html`: dashboard HTML local con pestañas para prestación contributiva y subsidios de desempleo, filtros por sexo, edad, comunidad autónoma, provincia y periodo, gráficos con descarga CSV, mapa territorial y desglose de subsidios.
+- `data/dashboard/airef-logo.png`: logotipo de la AIReF usado por el dashboard, extraído de la plantilla institucional.
+- `data/geo/spain-provinces-topo.json`: geometrías TopoJSON de provincias y comunidades autónomas para el mapa del dashboard, procedentes de `es-atlas`.
 
 La tabla ancha empieza con:
 

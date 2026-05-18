@@ -7,6 +7,7 @@ from pathlib import Path
 
 DASHBOARD_DIR = Path("data/dashboard")
 DASHBOARD_PATH = DASHBOARD_DIR / "index.html"
+GEO_TOPO_PATH = Path("data/geo/spain-provinces-topo.json")
 
 MAIN_FIELDS = [
     "total prestacion contributiva",
@@ -90,6 +91,7 @@ def build_dashboard_payload(csv_path: Path) -> dict:
             for key, value in sorted(provinces_by_ccaa.items(), key=lambda item: territory_sort_key(item[0]))
         },
         "subsidyFields": SUBSIDY_FIELDS,
+        "geoTopology": json.loads(GEO_TOPO_PATH.read_text(encoding="utf-8")) if GEO_TOPO_PATH.exists() else None,
         "rows": rows,
         "subtypeRows": subtype_rows,
     }
@@ -173,7 +175,7 @@ def dashboard_html(payload: dict) -> str:
       padding-right: 24px;
     }}
     .topbar {{
-      min-height: 82px;
+      min-height: 62px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -186,11 +188,10 @@ def dashboard_html(payload: dict) -> str:
       min-width: 0;
     }}
     .logo {{
-      color: var(--burgundy);
-      font-size: 32px;
-      font-weight: 700;
-      line-height: 1;
-      white-space: nowrap;
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      display: block;
     }}
     h1 {{
       margin: 0;
@@ -202,13 +203,6 @@ def dashboard_html(payload: dict) -> str:
       margin: 5px 0 0;
       font-size: 13px;
       color: var(--muted);
-    }}
-    .lang {{
-      display: flex;
-      gap: 8px;
-      font-size: 13px;
-      color: var(--burgundy);
-      font-weight: 700;
     }}
     main {{
       padding-top: 22px;
@@ -250,7 +244,7 @@ def dashboard_html(payload: dict) -> str:
       font-weight: 700;
       color: var(--text);
     }}
-    select, input[type="month"] {{
+    select {{
       width: 100%;
       min-height: 36px;
       border: 1px solid var(--line);
@@ -261,6 +255,24 @@ def dashboard_html(payload: dict) -> str:
       font: inherit;
       font-size: 13px;
     }}
+    input[type="range"] {{
+      width: 100%;
+      accent-color: var(--burgundy);
+    }}
+    .period-control {{
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: #fff;
+      min-height: 36px;
+      padding: 5px 9px;
+    }}
+    .period-value {{
+      color: var(--burgundy);
+      font-size: 12px;
+      font-weight: 700;
+      text-align: right;
+      margin-top: 2px;
+    }}
     .kpis {{
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -269,7 +281,10 @@ def dashboard_html(payload: dict) -> str:
     }}
     .kpi {{
       background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
       border-top: 4px solid var(--burgundy);
+      box-shadow: 0 2px 7px rgba(64,64,64,.14);
       padding: 16px;
       min-height: 92px;
     }}
@@ -294,7 +309,10 @@ def dashboard_html(payload: dict) -> str:
     .panel {{
       background: var(--panel);
       border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 2px 7px rgba(64,64,64,.14);
       min-width: 0;
+      overflow: hidden;
     }}
     .panel-head {{
       display: flex;
@@ -340,6 +358,7 @@ def dashboard_html(payload: dict) -> str:
       grid-column: 1 / -1;
     }}
     .source {{
+      display: none;
       margin: 0;
       padding: 0 16px 14px;
       color: var(--muted);
@@ -359,10 +378,13 @@ def dashboard_html(payload: dict) -> str:
       line-height: 1.35;
     }}
     footer {{
+      max-width: none;
+      background: #4f0018;
       padding-top: 18px;
       padding-bottom: 28px;
-      color: var(--muted);
+      color: #fff;
       font-size: 12px;
+      text-align: center;
     }}
     @media (max-width: 980px) {{
       .filters {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
@@ -385,13 +407,12 @@ def dashboard_html(payload: dict) -> str:
   <header>
     <div class="topbar">
       <div class="brand">
-        <div class="logo">AIReF</div>
+        <img class="logo" src="airef-logo.png" alt="AIReF">
         <div>
           <h1>Indicadores de prestaciones por desempleo</h1>
           <p class="subtitle">Dashboard interactivo de análisis de prestaciones SEPE (2017-2026)</p>
         </div>
       </div>
-      <div class="lang">ES <span>EN</span></div>
     </div>
   </header>
   <main>
@@ -406,7 +427,12 @@ def dashboard_html(payload: dict) -> str:
       <label>Territorio<select id="territoryLevel"></select></label>
       <label>Comunidad autónoma<select id="ccaa"></select></label>
       <label>Provincia<select id="province"></select></label>
-      <label>Periodo<input id="period" type="month"></label>
+      <label>Periodo
+        <div class="period-control">
+          <input id="period" type="range" step="1">
+          <div class="period-value" id="periodLabel"></div>
+        </div>
+      </label>
     </section>
 
     <section class="kpis">
@@ -417,7 +443,7 @@ def dashboard_html(payload: dict) -> str:
     </section>
 
     <section class="grid">
-      <article class="panel wide">
+      <article class="panel wide" id="evolutionPanel">
         <div class="panel-head">
           <div>
             <h2>Evolución de beneficiarios y tasa de cobertura</h2>
@@ -426,18 +452,6 @@ def dashboard_html(payload: dict) -> str:
           <button class="csv" data-download="evolution">CSV</button>
         </div>
         <svg id="evolution" class="chart" role="img"></svg>
-        <p class="source">Fuente: AIReF a partir de SEPE.</p>
-      </article>
-
-      <article class="panel">
-        <div class="panel-head">
-          <div>
-            <h2>Composición por prestación</h2>
-            <p class="desc">Prestación contributiva y subsidios en la selección.</p>
-          </div>
-          <button class="csv" data-download="mix">CSV</button>
-        </div>
-        <svg id="mix" class="chart" role="img"></svg>
         <p class="source">Fuente: AIReF a partir de SEPE.</p>
       </article>
 
@@ -465,7 +479,7 @@ def dashboard_html(payload: dict) -> str:
         <p class="source">Fuente: AIReF a partir de SEPE.</p>
       </article>
 
-      <article class="panel">
+      <article class="panel wide" id="subtypesPanel">
         <div class="panel-head">
           <div>
             <h2>Desglose de subsidios</h2>
@@ -474,6 +488,18 @@ def dashboard_html(payload: dict) -> str:
           <button class="csv" data-download="subtypes">CSV</button>
         </div>
         <svg id="subtypes" class="chart map" role="img"></svg>
+        <p class="source">Fuente: AIReF a partir de SEPE.</p>
+      </article>
+
+      <article class="panel wide" id="subsidyLinesPanel">
+        <div class="panel-head">
+          <div>
+            <h2>Evolución por tipo de subsidio</h2>
+            <p class="desc">Series mensuales de los principales tipos de subsidio.</p>
+          </div>
+          <button class="csv" data-download="subsidyLines">CSV</button>
+        </div>
+        <svg id="subsidyLines" class="chart" role="img"></svg>
         <p class="source">Fuente: AIReF a partir de SEPE.</p>
       </article>
     </section>
@@ -501,7 +527,7 @@ def dashboard_html(payload: dict) -> str:
       sex: document.getElementById("sex"), age: document.getElementById("age"),
       territoryLevel: document.getElementById("territoryLevel"), ccaa: document.getElementById("ccaa"),
       province: document.getElementById("province"), period: document.getElementById("period"),
-      tip: document.getElementById("tooltip")
+      tip: document.getElementById("tooltip"), periodLabel: document.getElementById("periodLabel")
     }};
     const downloads = {{}};
 
@@ -519,19 +545,25 @@ def dashboard_html(payload: dict) -> str:
       option(els.territoryLevel, "provincia", "Provincia");
       option(els.ccaa, "España");
       db.ccaa.forEach(v => option(els.ccaa, v));
-      els.period.min = db.periods[0];
-      els.period.max = db.periods[db.periods.length - 1];
-      els.period.value = db.latest;
+      els.period.min = 0;
+      els.period.max = db.periods.length - 1;
+      els.period.value = Math.max(0, db.periods.indexOf(db.latest));
+      updatePeriodLabel();
       els.age.value = "Todas las edades";
       updateProvinceOptions();
       document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {{
-        state.tab = btn.dataset.tab;
+      state.tab = btn.dataset.tab;
         document.querySelectorAll(".tab").forEach(node => node.setAttribute("aria-selected", String(node === btn)));
         render();
       }}));
       Object.values(els).forEach(el => {{
+        if (el && el.tagName !== "DIV") el.addEventListener("input", () => {{
+          if (el === els.period) updatePeriodLabel();
+          if (el === els.period) render();
+        }});
         if (el && el.tagName !== "DIV") el.addEventListener("change", () => {{
           if (el === els.ccaa || el === els.territoryLevel) updateProvinceOptions();
+          if (el === els.period) updatePeriodLabel();
           render();
         }});
       }});
@@ -548,6 +580,12 @@ def dashboard_html(payload: dict) -> str:
       if (els.territoryLevel.value === "provincia" && els.province.value === "Todas las provincias" && els.province.options.length > 1) els.province.selectedIndex = 1;
       els.ccaa.disabled = els.territoryLevel.value === "espana";
       els.province.disabled = els.territoryLevel.value !== "provincia";
+    }}
+    function currentPeriod() {{
+      return db.periods[Math.max(0, Math.min(db.periods.length - 1, Number(els.period.value) || 0))];
+    }}
+    function updatePeriodLabel() {{
+      if (els.periodLabel) els.periodLabel.textContent = currentPeriod();
     }}
     function selectedMetric(row) {{ return state.tab === "pc" ? row[idx.pc] : row[idx.sub]; }}
     function rowMatches(row, extra = {{}}) {{
@@ -587,19 +625,23 @@ def dashboard_html(payload: dict) -> str:
       const w = Math.max(320, rect.width);
       const h = Math.max(280, rect.height);
       svg.setAttribute("viewBox", `0 0 ${{w}} ${{h}}`);
-      return {{ w, h, m: {{ t: 28, r: 44, b: 48, l: 62 }} }};
+      return {{ w, h, m: {{ t: 42, r: 72, b: 72, l: 86 }} }};
     }}
     function render() {{
+      document.getElementById("subtypesPanel").style.display = state.tab === "sub" ? "" : "none";
+      document.getElementById("subsidyLinesPanel").style.display = state.tab === "sub" ? "" : "none";
       const rows = currentRows();
       renderKpis(rows);
       renderEvolution(rows);
-      renderMix();
       renderAge();
       renderMap();
-      renderSubtypes();
+      if (state.tab === "sub") {{
+        renderSubtypes();
+        renderSubsidyLines();
+      }}
     }}
     function renderKpis(rows) {{
-      const period = els.period.value;
+      const period = currentPeriod();
       const row = rows.find(r => r[idx.period] === period) || rows[rows.length - 1];
       const value = row ? selectedMetric(row) : null;
       const national = db.rows.find(r => r[idx.period] === period && r[idx.sex] === els.sex.value && r[idx.age] === els.age.value && r[idx.level] === "espana" && r[idx.ccaa] === "España");
@@ -625,10 +667,16 @@ def dashboard_html(payload: dict) -> str:
       const x = (i) => m.l + i / Math.max(1, rows.length - 1) * (w - m.l - m.r);
       const y = v => h - m.b - v / maxY * (h - m.t - m.b);
       const yc = v => h - m.b - v / maxC * (h - m.t - m.b);
-      grid(svg, w, h, m, 5);
+      grid(svg, w, h, m, 5, maxY, v => fmtInt(v));
+      rightAxis(svg, w, h, m, 5, maxC, v => fmtPct(v).replace(" %", ""));
       axisLabels(svg, rows, x, h, m);
-      line(svg, rows.map((r, i) => [x(i), y(selectedMetric(r) || 0)]), "#83082A", 2.5);
-      line(svg, rows.filter(r => r[idx.cov] != null).map(r => [x(rows.indexOf(r)), yc(r[idx.cov])]), "#404040", 1.8, "6 4");
+      axisTitles(svg, w, h, m, "Periodo", "Beneficiarios");
+      const metricPts = rows.map((r, i) => [x(i), y(selectedMetric(r) || 0), r]);
+      const covPts = rows.filter(r => r[idx.cov] != null).map(r => [x(rows.indexOf(r)), yc(r[idx.cov]), r]);
+      smoothLine(svg, metricPts, "#83082A", 2.5);
+      smoothLine(svg, covPts, "#404040", 1.8, "6 4");
+      hoverPoints(svg, metricPts, r => `<strong>${{r[idx.period]}}</strong><br>${{state.tab === "pc" ? "Prestación contributiva" : "Subsidios"}}: ${{fmtInt(selectedMetric(r))}}`);
+      hoverPoints(svg, covPts, r => `<strong>${{r[idx.period]}}</strong><br>Tasa de cobertura: ${{fmtPct(r[idx.cov])}}`, "#404040");
       node(svg, "text", {{ x: m.l, y: 18, fill: "#83082A", "font-size": 12, "font-weight": 700 }}, state.tab === "pc" ? "Prestación contributiva" : "Subsidios de desempleo");
       node(svg, "text", {{ x: m.l + 180, y: 18, fill: "#404040", "font-size": 12, "font-weight": 700 }}, "Tasa de cobertura");
       downloads.evolution = [["Periodo","Beneficiarios","Tasa de cobertura"], ...rows.map(r => [r[idx.period], selectedMetric(r), r[idx.cov]])];
@@ -654,55 +702,106 @@ def dashboard_html(payload: dict) -> str:
     function renderAge() {{
       const svg = document.getElementById("ageChart"); clear(svg);
       const {{ w, h, m }} = dims(svg);
-      const rows = db.rows.filter(r => r[idx.period] === els.period.value && r[idx.sex] === els.sex.value && r[idx.level] === els.territoryLevel.value && r[idx.age] !== "Todas las edades");
+      m.b = 104;
+      const rows = db.rows.filter(r => r[idx.period] === currentPeriod() && r[idx.sex] === els.sex.value && r[idx.level] === els.territoryLevel.value && r[idx.age] !== "Todas las edades");
       const scoped = rows.filter(r => els.territoryLevel.value === "espana" ? r[idx.ccaa] === "España" : els.territoryLevel.value === "comunidad_autonoma" ? r[idx.ccaa] === els.ccaa.value : r[idx.ccaa] === els.ccaa.value && r[idx.province] === els.province.value);
       const data = db.ages.filter(a => a !== "Todas las edades").map(age => scoped.find(r => r[idx.age] === age)).filter(Boolean);
       if (!data.length) return noData(svg, w, h);
       bars(svg, data.map(r => [r[idx.age], selectedMetric(r)]), w, h, m, "#83082A");
+      axisTitles(svg, w, h, m, "Edad", "Beneficiarios");
       downloads.age = [["Edad","Beneficiarios"], ...data.map(r => [r[idx.age], selectedMetric(r)])];
     }}
     function renderMap() {{
       const svg = document.getElementById("map"); clear(svg);
       const {{ w, h }} = dims(svg);
-      const period = els.period.value;
+      const period = currentPeriod();
       const level = els.territoryLevel.value === "provincia" ? "provincia" : "comunidad_autonoma";
       const rows = periodRows(period, level).filter(r => level === "provincia" ? r[idx.ccaa] === els.ccaa.value : r[idx.province] === "Todas las provincias");
       if (!rows.length) return noData(svg, w, h);
-      if (level === "provincia") {{
-        bars(svg, rows.sort((a, b) => selectedMetric(b) - selectedMetric(a)).slice(0, 18).map(r => [r[idx.province], selectedMetric(r)]), w, h, {{ t: 20, r: 36, b: 28, l: 150 }}, "#83082A", true);
-        downloads.map = [["Provincia","Beneficiarios"], ...rows.map(r => [r[idx.province], selectedMetric(r)])];
-        return;
-      }}
+      if (!db.geoTopology) return noData(svg, w, h);
       const vals = rows.map(r => selectedMetric(r) || 0);
       const min = Math.min(...vals), max = Math.max(...vals);
-      const tile = Math.min((w - 60) / 7.4, (h - 40) / 8.4);
-      rows.forEach(r => {{
-        const pos = tileMap[r[idx.ccaa]];
-        if (!pos) return;
+      const rowByName = new Map(rows.map(r => [normName(level === "provincia" ? r[idx.province] : r[idx.ccaa]), r]));
+      const features = topoFeatures(db.geoTopology, level === "provincia" ? "provinces" : "autonomous_regions")
+        .filter(f => rowByName.has(normName(f.properties.name)));
+      const projected = projectFeatures(features, w, h);
+      if (!projected.length) return noData(svg, w, h);
+      projected.forEach(f => {{
+        const r = rowByName.get(normName(f.properties.name));
         const value = selectedMetric(r) || 0;
-        const x = 28 + pos[0] * tile * 1.02;
-        const y = 16 + pos[1] * tile * 1.02;
-        const rect = node(svg, "rect", {{ x, y, width: tile * .92, height: tile * .92, fill: ramp(value, min, max), stroke: "#fff", "stroke-width": 2 }});
-        rect.addEventListener("mousemove", e => showTip(e, `<strong>${{r[idx.ccaa]}}</strong><br>${{fmtInt(value)}} beneficiarios<br>Cobertura: ${{fmtPct(r[idx.cov])}}`));
-        rect.addEventListener("mouseleave", hideTip);
-        node(svg, "text", {{ x: x + tile * .46, y: y + tile * .52, "text-anchor": "middle", fill: value > (min + max) / 2 ? "#fff" : "#404040", "font-size": 10, "font-weight": 700 }}, abbr(r[idx.ccaa]));
+        const path = node(svg, "path", {{ d: f.path, fill: ramp(value, min, max), stroke: "#fff", "stroke-width": 1.2 }});
+        path.addEventListener("mousemove", e => showTip(e, `<strong>${{level === "provincia" ? r[idx.province] : r[idx.ccaa]}}</strong><br>${{fmtInt(value)}} beneficiarios<br>Cobertura: ${{fmtPct(r[idx.cov])}}`));
+        path.addEventListener("mouseleave", hideTip);
       }});
-      downloads.map = [["Comunidad autónoma","Beneficiarios","Tasa de cobertura"], ...rows.map(r => [r[idx.ccaa], selectedMetric(r), r[idx.cov]])];
+      node(svg, "text", {{ x: 20, y: h - 14, fill: "#404040", "font-size": 11, "font-style": "italic" }}, level === "provincia" ? "Mapa provincial" : "Mapa por comunidad autónoma");
+      downloads.map = [[level === "provincia" ? "Provincia" : "Comunidad autónoma","Beneficiarios","Tasa de cobertura"], ...rows.map(r => [level === "provincia" ? r[idx.province] : r[idx.ccaa], selectedMetric(r), r[idx.cov]])];
     }}
     function renderSubtypes() {{
       const svg = document.getElementById("subtypes"); clear(svg);
       const {{ w, h, m }} = dims(svg);
-      const row = db.subtypeRows.find(r => r[0] === els.period.value && r[1] === els.sex.value && r[2] === els.territoryLevel.value && (els.territoryLevel.value === "espana" ? r[3] === "España" : els.territoryLevel.value === "comunidad_autonoma" ? r[3] === els.ccaa.value && r[4] === "Todas las provincias" : r[3] === els.ccaa.value && r[4] === els.province.value));
+      const row = db.subtypeRows.find(r => r[0] === currentPeriod() && r[1] === els.sex.value && r[2] === els.territoryLevel.value && (els.territoryLevel.value === "espana" ? r[3] === "España" : els.territoryLevel.value === "comunidad_autonoma" ? r[3] === els.ccaa.value && r[4] === "Todas las provincias" : r[3] === els.ccaa.value && r[4] === els.province.value));
       if (!row) return noData(svg, w, h);
       const data = db.subsidyFields.map((name, i) => [cleanSubsidy(name), row[5][i] || 0]).filter(d => d[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
-      bars(svg, data, w, h, {{ t: 20, r: 36, b: 28, l: 190 }}, "#83082A", true);
+      const subM = {{ t: 24, r: 52, b: 54, l: 310 }};
+      bars(svg, data, w, h, subM, "#83082A", true);
+      xAxisTitle(svg, w, h, subM, "Beneficiarios");
       downloads.subtypes = [["Tipo de subsidio","Beneficiarios"], ...data];
     }}
-    function grid(svg, w, h, m, count) {{
+    function renderSubsidyLines() {{
+      const svg = document.getElementById("subsidyLines"); clear(svg);
+      const {{ w, h, m }} = dims(svg);
+      m.t = 96;
+      const seriesRows = db.subtypeRows
+        .filter(r => r[1] === els.sex.value && r[2] === els.territoryLevel.value && (
+          els.territoryLevel.value === "espana" ? r[3] === "España" :
+          els.territoryLevel.value === "comunidad_autonoma" ? r[3] === els.ccaa.value && r[4] === "Todas las provincias" :
+          r[3] === els.ccaa.value && r[4] === els.province.value
+        ))
+        .sort((a, b) => a[0].localeCompare(b[0]));
+      if (!seriesRows.length) return noData(svg, w, h);
+      const latest = seriesRows[seriesRows.length - 1];
+      const top = db.subsidyFields
+        .map((name, i) => [name, latest[5][i] || 0, i])
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+      const maxY = Math.max(...seriesRows.flatMap(r => top.map(t => r[5][t[2]] || 0)), 1) * 1.12;
+      const x = i => m.l + i / Math.max(1, seriesRows.length - 1) * (w - m.l - m.r);
+      const y = v => h - m.b - v / maxY * (h - m.t - m.b);
+      const colors = ["#83082A", "#D00D43", "#D46271", "#E397A0", "#404040"];
+      grid(svg, w, h, m, 5, maxY, v => fmtInt(v));
+      axisLabels(svg, seriesRows.map(r => ({{ [idx.period]: r[0] }})), x, h, m);
+      axisTitles(svg, w, h, m, "Periodo", "Beneficiarios");
+      top.forEach((t, si) => {{
+        const pts = seriesRows.map((r, i) => [x(i), y(r[5][t[2]] || 0), r]);
+        smoothLine(svg, pts, colors[si], 2.2);
+        hoverPoints(svg, pts, r => `<strong>${{r[0]}}</strong><br>${{cleanSubsidy(t[0])}}: ${{fmtInt(r[5][t[2]] || 0)}}`, colors[si]);
+        const lx = m.l + (si % 2) * 360;
+        const ly = 18 + Math.floor(si / 2) * 18;
+        node(svg, "rect", {{ x: lx, y: ly - 9, width: 10, height: 10, fill: colors[si] }});
+        node(svg, "text", {{ x: lx + 16, y: ly, fill: "#404040", "font-size": 11 }}, cleanSubsidy(t[0]));
+      }});
+      downloads.subsidyLines = [["Periodo", ...top.map(t => cleanSubsidy(t[0]))], ...seriesRows.map(r => [r[0], ...top.map(t => r[5][t[2]] || 0)])];
+    }}
+    function grid(svg, w, h, m, count, maxValue = null, formatter = v => v) {{
       for (let i = 0; i <= count; i++) {{
         const y = m.t + i / count * (h - m.t - m.b);
         node(svg, "line", {{ x1: m.l, y1: y, x2: w - m.r, y2: y, stroke: "#CCCCCC" }});
+        if (maxValue != null) node(svg, "text", {{ x: m.l - 8, y: y + 4, "text-anchor": "end", fill: "#404040", "font-size": 10 }}, formatter(maxValue * (1 - i / count)));
       }}
+    }}
+    function axisTitles(svg, w, h, m, xLabel, yLabel) {{
+      node(svg, "text", {{ x: (m.l + w - m.r) / 2, y: h - 8, "text-anchor": "middle", fill: "#404040", "font-size": 11, "font-style": "italic" }}, xLabel);
+      node(svg, "text", {{ x: 20, y: (m.t + h - m.b) / 2, "text-anchor": "middle", fill: "#404040", "font-size": 11, transform: `rotate(-90 20 ${{(m.t + h - m.b) / 2}})` }}, yLabel);
+    }}
+    function xAxisTitle(svg, w, h, m, xLabel) {{
+      node(svg, "text", {{ x: (m.l + w - m.r) / 2, y: h - 8, "text-anchor": "middle", fill: "#404040", "font-size": 11, "font-style": "italic" }}, xLabel);
+    }}
+    function rightAxis(svg, w, h, m, count, maxValue, formatter = v => v) {{
+      for (let i = 0; i <= count; i++) {{
+        const y = m.t + i / count * (h - m.t - m.b);
+        node(svg, "text", {{ x: w - m.r + 10, y: y + 4, fill: "#404040", "font-size": 10 }}, formatter(maxValue * (1 - i / count)));
+      }}
+      node(svg, "text", {{ x: w - 16, y: (m.t + h - m.b) / 2, "text-anchor": "middle", fill: "#404040", "font-size": 11, transform: `rotate(90 ${{w - 16}} ${{(m.t + h - m.b) / 2}})` }}, "Tasa de cobertura");
     }}
     function axisLabels(svg, rows, x, h, m) {{
       const seen = new Set();
@@ -717,6 +816,31 @@ def dashboard_html(payload: dict) -> str:
     function line(svg, points, color, width, dash = "") {{
       const d = points.map((p, i) => `${{i ? "L" : "M"}}${{p[0]}},${{p[1]}}`).join(" ");
       node(svg, "path", {{ d, fill: "none", stroke: color, "stroke-width": width, "stroke-dasharray": dash }});
+    }}
+    function smoothLine(svg, points, color, width, dash = "") {{
+      if (!points.length) return;
+      if (points.length < 3) return line(svg, points, color, width, dash);
+      let d = `M${{points[0][0]}},${{points[0][1]}}`;
+      for (let i = 0; i < points.length - 1; i++) {{
+        const p0 = points[Math.max(0, i - 1)];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[Math.min(points.length - 1, i + 2)];
+        const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+        const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+        const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+        const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+        d += ` C${{c1x}},${{c1y}} ${{c2x}},${{c2y}} ${{p2[0]}},${{p2[1]}}`;
+      }}
+      node(svg, "path", {{ d, fill: "none", stroke: color, "stroke-width": width, "stroke-dasharray": dash, "stroke-linecap": "round", "stroke-linejoin": "round" }});
+    }}
+    function hoverPoints(svg, points, html, color = "#83082A") {{
+      points.forEach(p => {{
+        const hit = node(svg, "circle", {{ cx: p[0], cy: p[1], r: 7, fill: "transparent", stroke: "transparent" }});
+        hit.addEventListener("mousemove", e => showTip(e, html(p[2])));
+        hit.addEventListener("mouseleave", hideTip);
+        node(svg, "circle", {{ cx: p[0], cy: p[1], r: 3, fill: color, stroke: "#fff", "stroke-width": 1.5 }});
+      }});
     }}
     function area(svg, pts, base) {{
       const top = pts.map(p => `${{p[0]}},${{p[2]}}`).join(" ");
@@ -748,8 +872,104 @@ def dashboard_html(payload: dict) -> str:
         const rect = node(svg, "rect", {{ x, y, width: band * .6, height: bh, fill: color }});
         rect.addEventListener("mousemove", e => showTip(e, `<strong>${{d[0]}}</strong><br>${{fmtInt(d[1])}}`));
         rect.addEventListener("mouseleave", hideTip);
-        node(svg, "text", {{ x: x + band * .3, y: h - 18, "text-anchor": "end", fill: "#404040", "font-size": 10, transform: `rotate(-36 ${{x + band * .3}} ${{h - 18}})` }}, d[0]);
+        const labelY = h - m.b + 48;
+        node(svg, "text", {{ x: x + band * .3, y: labelY, "text-anchor": "end", fill: "#404040", "font-size": 10, transform: `rotate(-36 ${{x + band * .3}} ${{labelY}})` }}, d[0]);
       }});
+    }}
+    function normName(value) {{
+      const aliases = {{
+        "alacant alicante": "alicante alacant",
+        "alicante alacant": "alicante alacant",
+        "castello castellon": "castellon castello",
+        "castellon castello": "castellon castello",
+        "valencia valencia": "valencia valencia",
+        "valencia valencia": "valencia valencia",
+        "a coruna": "coruna a",
+        "la coruna": "coruna a",
+        "coruna a": "coruna a",
+        "illes balears": "balears illes",
+        "balears illes": "balears illes",
+        "las palmas": "palmas las",
+        "palmas las": "palmas las",
+        "comunidad de madrid": "madrid comunidad de",
+        "madrid comunidad de": "madrid comunidad de",
+        "region de murcia": "murcia region de",
+        "murcia region de": "murcia region de",
+        "comunidad foral de navarra": "navarra comunidad foral de",
+        "navarra comunidad foral de": "navarra comunidad foral de",
+        "principado de asturias": "asturias principado de",
+        "asturias principado de": "asturias principado de",
+        "la rioja": "rioja la",
+        "rioja la": "rioja la",
+        "cataluna catalunya": "cataluna",
+        "cataluna": "cataluna",
+        "pais vasco euskadi": "pais vasco",
+        "pais vasco": "pais vasco",
+        "ciudad autonoma de ceuta": "ceuta",
+        "ciudad autonoma de melilla": "melilla",
+        "comunitat valenciana": "comunitat valenciana"
+      }};
+      const key = String(value || "")
+        .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+        .replace(/[\\/]/g, " ")
+        .replace(/[^a-zA-Z0-9]+/g, " ")
+        .trim().toLowerCase();
+      return aliases[key] || key;
+    }}
+    function topoFeatures(topology, objectName) {{
+      const transform = topology.transform;
+      const arcs = topology.arcs.map(arc => {{
+        let x = 0, y = 0;
+        return arc.map(p => {{
+          x += p[0]; y += p[1];
+          return [x * transform.scale[0] + transform.translate[0], y * transform.scale[1] + transform.translate[1]];
+        }});
+      }});
+      function arcById(id) {{
+        if (id >= 0) return arcs[id];
+        return [...arcs[-id - 1]].reverse();
+      }}
+      function ringPath(ring) {{
+        return ring.flatMap((arcId, i) => {{
+          const pts = arcById(arcId);
+          return i ? pts.slice(1) : pts;
+        }});
+      }}
+      function polygonCoords(poly) {{
+        return poly.map(ringPath);
+      }}
+      return topology.objects[objectName].geometries
+        .filter(g => !/gibraltar/i.test(g.properties?.name || ""))
+        .map(g => ({{
+          properties: g.properties || {{}},
+          coordinates: g.type === "Polygon" ? [polygonCoords(g.arcs)] : g.arcs.map(polygonCoords)
+        }}));
+    }}
+    function projectFeatures(features, w, h) {{
+      const all = [];
+      features.forEach(f => collectPoints(f.coordinates, all));
+      if (!all.length) return [];
+      const minLon = Math.min(...all.map(p => p[0])), maxLon = Math.max(...all.map(p => p[0]));
+      const minLat = Math.min(...all.map(p => p[1])), maxLat = Math.max(...all.map(p => p[1]));
+      const pad = 18;
+      const sx = (w - pad * 2) / (maxLon - minLon);
+      const sy = (h - pad * 2) / (maxLat - minLat);
+      const s = Math.min(sx, sy);
+      const ox = (w - (maxLon - minLon) * s) / 2;
+      const oy = (h - (maxLat - minLat) * s) / 2;
+      const proj = p => [ox + (p[0] - minLon) * s, oy + (maxLat - p[1]) * s];
+      return features.map(f => {{
+        const parts = f.coordinates.map(poly => poly.map(ring => ring.map(proj)));
+        const d = parts.map(poly => poly.map(ring => ring.map((p, i) => `${{i ? "L" : "M"}}${{p[0]}},${{p[1]}}`).join(" ") + "Z").join(" ")).join(" ");
+        return {{ properties: f.properties, path: d }};
+      }});
+    }}
+    function collectPoints(value, out) {{
+      if (Array.isArray(value) && typeof value[0] === "number" && typeof value[1] === "number") {{
+        out.push(value);
+        return;
+      }}
+      if (Array.isArray(value)) value.forEach(child => collectPoints(child, out));
     }}
     function ramp(value, min, max) {{
       const t = max === min ? .6 : Math.max(0, Math.min(1, (value - min) / (max - min)));
@@ -762,7 +982,19 @@ def dashboard_html(payload: dict) -> str:
       return map[name] || name.slice(0,3).toUpperCase();
     }}
     function cleanSubsidy(name) {{
-      return name.replace("subsidio de desempleo ", "").replace("subsidios de desempleo ", "").replace("por ", "").replace("para ", "");
+      const labels = {{
+        "subsidios de desempleo de mayores": "Mayores",
+        "subsidio de desempleo por agotamiento de la prestacion contributiva": "Agotamiento prestación contributiva",
+        "subsidio de desempleo por no cotizacion suficiente": "Cotización insuficiente",
+        "subsidio de desempleo para emigrantes retornados": "Emigrantes retornados",
+        "subsidio de desempleo para liberados de prision": "Liberados prisión",
+        "subsidio de desempleo por revision de invalidez": "Revisión invalidez",
+        "subsidio de desempleo para fijos discontinuos": "Fijos discontinuos",
+        "subsidio extraordinario por desempleo (SED)": "SED",
+        "subsidio VVGS": "VVGS",
+        "complemento de apoyo al empleo (CAE)": "CAE"
+      }};
+      return labels[name] || name.replace("subsidio de desempleo ", "").replace("subsidios de desempleo ", "").replace("por ", "").replace("para ", "");
     }}
     function noData(svg, w, h) {{
       node(svg, "text", {{ x: w / 2, y: h / 2, "text-anchor": "middle", fill: "#6f6f6f", "font-size": 13 }}, "Sin datos para la selección");
